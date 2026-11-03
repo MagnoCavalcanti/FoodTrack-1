@@ -7,7 +7,7 @@ em React.
 ## Componentes
 
 - **Backend:** Django REST Framework, autenticação por token e PostgreSQL.
-- **Frontend:** React, Vite, JavaScript e Tailwind CSS.
+- **Frontend:** React, Vite, TypeScript e Tailwind CSS.
 - **API:** restaurantes, usuários, alimentos, estoques e desperdícios.
 
 O frontend autentica com token da API, carrega os recursos do restaurante e
