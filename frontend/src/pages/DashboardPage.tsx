@@ -15,6 +15,7 @@ type DashboardPageProps = {
   onRegisterWaste: (stockId: number) => void;
 };
 
+// Apresenta indicadores e alertas preparados pelo componente App.
 export default function DashboardPage({
   foodsExpiringToday,
   expiringSoonCount,
@@ -100,6 +101,7 @@ export default function DashboardPage({
   );
 }
 
+// Cartão de indicador com variações visuais de atenção e perigo.
 function StatCard({ label, value, suffix, icon, badge, footer, warning, danger }: { label: string; value: string; suffix: string; icon?: IconName; badge?: string; footer: ReactNode; warning?: boolean; danger?: boolean }) {
   return (
     <div className={`min-h-[158px] rounded-2xl border bg-white p-5 shadow-[var(--shadow)] ${warning ? "border-[var(--warning-border)]" : danger ? "border-[var(--danger-border)]" : "border-[var(--line)]"}`}>
@@ -110,6 +112,7 @@ function StatCard({ label, value, suffix, icon, badge, footer, warning, danger }
   );
 }
 
+// Contêiner visual reutilizado nos resumos laterais do painel.
 function Panel({ children }: { children: ReactNode }) {
   return <div className="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-[var(--shadow)]">{children}</div>;
 }

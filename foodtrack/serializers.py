@@ -5,6 +5,7 @@ from .models import CNPJ_MASCARA, MENSAGEM_CNPJ, Alimento, Desperdicio, Estoque,
 
 
 def usuario_da_requisicao(serializer):
+    """Obtém a conta autenticada do contexto DRF, se houver requisição."""
     request = serializer.context.get('request')
     if request is None:
         return None
@@ -12,12 +13,15 @@ def usuario_da_requisicao(serializer):
 
 
 def usuario_comum(user):
+    """Indica se as regras de escopo devem tratar a conta como usuário comum."""
     # Sem usuário autenticado (geração do schema, por exemplo) o contrato fica completo.
     # A restrição de empresa só vale para quem já entrou e não é superusuário.
     return bool(user and user.is_authenticated and not user.is_superuser)
 
 
 class RestauranteSerializer(serializers.ModelSerializer):
+    """Valida e serializa os campos públicos de restaurante."""
+
     class Meta:
         model = Restaurante
         fields = ['id', 'nome', 'cnpj', 'dias_alerta_validade']
@@ -30,6 +34,8 @@ class RestauranteSerializer(serializers.ModelSerializer):
 
 
 class UsuarioSerializer(serializers.ModelSerializer):
+    """Aplica as regras de criação, atualização e escopo das contas."""
+
     # A senha não volta no JSON. set_password grava o hash.
     password = serializers.CharField(write_only=True, required=False)
 
@@ -97,6 +103,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
         return attrs
 
     def conferir_perfil(self, attrs, is_superuser):
+        """Impede perfis inconsistentes ou privilégios administrativos indevidos."""
         if is_superuser:
             attrs['perfil'] = Usuario.Perfil.SUPERUSER
             return
@@ -112,6 +119,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
             })
 
     def create(self, validated_data):
+        """Cria o usuário armazenando a senha pelo mecanismo de hash do Django."""
         senha = validated_data.pop('password')
         usuario = Usuario(**validated_data)
         usuario.set_password(senha)
@@ -119,6 +127,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
         return usuario
 
     def update(self, instance, validated_data):
+        """Atualiza campos e troca a senha somente quando ela foi enviada."""
         senha = validated_data.pop('password', None)
         for campo, valor in validated_data.items():
             setattr(instance, campo, valor)
@@ -129,6 +138,8 @@ class UsuarioSerializer(serializers.ModelSerializer):
 
 
 class AlimentoSerializer(serializers.ModelSerializer):
+    """Associa alimentos ao restaurante da conta comum autenticada."""
+
     class Meta:
         model = Alimento
         fields = ['id', 'nome', 'categoria', 'medida', 'restaurante']
@@ -147,6 +158,8 @@ class AlimentoSerializer(serializers.ModelSerializer):
 
 
 class EstoqueSerializer(serializers.ModelSerializer):
+    """Valida que o alimento escolhido pertence ao escopo do usuário."""
+
     class Meta:
         model = Estoque
         fields = [
@@ -173,6 +186,8 @@ class EstoqueSerializer(serializers.ModelSerializer):
 
 
 class DesperdicioSerializer(serializers.ModelSerializer):
+    """Valida o estoque e define automaticamente o autor do registro."""
+
     class Meta:
         model = Desperdicio
         fields = ['id', 'motivo', 'descricao', 'quantidade', 'data', 'estoque', 'usuario']

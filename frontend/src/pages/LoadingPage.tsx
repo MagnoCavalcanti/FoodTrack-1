@@ -4,6 +4,7 @@ type LoadingPageProps = {
   onLogout: () => void;
 };
 
+// Mostra o estado da sessão durante o carregamento ou quando ele falha.
 export default function LoadingPage({ loading, loadError, onLogout }: LoadingPageProps) {
   return (
     <main className="grid min-h-screen place-items-center bg-[var(--canvas)] p-6">

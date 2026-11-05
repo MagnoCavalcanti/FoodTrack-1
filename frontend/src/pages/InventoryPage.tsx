@@ -15,6 +15,7 @@ type InventoryRow = {
   entry: string;
 };
 
+// Junta alimento e estoque para exibir, filtrar e editar os registros de inventário.
 export default function InventoryPage({ navigate, notify, foods, stocks, saveStock, openWaste }: PageProps) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("Todas");
@@ -24,6 +25,7 @@ export default function InventoryPage({ navigate, notify, foods, stocks, saveSto
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const today = localDateString();
+  // Os filtros e os status são calculados no cliente a partir dos dados carregados.
   const rows = useMemo(() => stocks.flatMap((stock) => {
     const food = foods.find((item) => item.id === stock.alimento);
     if (!food) return [];

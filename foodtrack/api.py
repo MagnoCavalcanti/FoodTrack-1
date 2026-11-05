@@ -26,6 +26,7 @@ from .serializers import (
 AGRUPAMENTOS_RELATORIO = ('motivo', 'alimento', 'categoria', 'dia')
 
 
+# Permissões próprias do domínio: vínculo, perfil de gestão e administração global.
 class ExigeVinculo(BasePermission):
     """Usuário comum só usa a API se já estiver ligado a um restaurante.
 
@@ -71,6 +72,8 @@ class SomenteSuperusuarioEscreve(BasePermission):
 
 
 class TokenRespostaSerializer(serializers.Serializer):
+    """Descreve o formato JSON devolvido ao autenticar."""
+
     token = serializers.CharField()
 
 
@@ -89,15 +92,23 @@ class ObterTokenView(ObtainAuthToken):
 
 
 class SaudeSerializer(serializers.Serializer):
+    """Formato mínimo da resposta pública de saúde."""
+
     status = serializers.CharField()
 
 
 class MotivoOpcaoSerializer(serializers.Serializer):
+    """Representa uma opção de motivo para o cliente."""
+
+# uma opção de motivo de desperdício
+
     valor = serializers.CharField()
     rotulo = serializers.CharField()
 
 
 class AlertaValidadeSerializer(serializers.Serializer):
+    """Campos que compõem cada alerta de validade."""
+
     situacao = serializers.CharField()
     mensagem = serializers.CharField()
     dias_restantes = serializers.IntegerField()
@@ -109,6 +120,8 @@ class AlertaValidadeSerializer(serializers.Serializer):
 
 
 class GrupoRelatorioSerializer(serializers.Serializer):
+    """Formato de um grupo agregado do relatório de desperdícios."""
+
     chave = serializers.CharField()
     rotulo = serializers.CharField()
     registros = serializers.IntegerField()
@@ -117,6 +130,8 @@ class GrupoRelatorioSerializer(serializers.Serializer):
 
 
 class RelatorioDesperdicioSerializer(serializers.Serializer):
+    """Formato da resposta completa do relatório."""
+
     data_inicio = serializers.DateField(allow_null=True)
     data_fim = serializers.DateField(allow_null=True)
     agrupar = serializers.CharField()
@@ -132,6 +147,7 @@ class EncerrarSessaoView(APIView):
 
     @extend_schema(request=None, responses={204: None})
     def post(self, request):
+        # Revogar o token no servidor invalida futuras requisições que o utilizem.
         Token.objects.filter(user=request.user).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -143,10 +159,12 @@ class SaudeView(APIView):
 
     @extend_schema(auth=[], responses={200: SaudeSerializer})
     def get(self, request):
+        # Endpoint público simples para verificar se a API está respondendo.
         return Response({'status': 'ok'})
 
 
 def ler_data(nome, valor):
+    """Converte parâmetro ISO em date e transforma erros em validação HTTP."""
     if not valor:
         return None
     try:
@@ -156,6 +174,7 @@ def ler_data(nome, valor):
 
 
 def ler_inteiro(nome, valor):
+    """Converte parâmetros inteiros opcionais em valores Python."""
     if valor in (None, ''):
         return None
     try:
@@ -165,6 +184,7 @@ def ler_inteiro(nome, valor):
 
 
 def ler_dias(valor):
+    """Valida o limite opcional de antecedência dos alertas."""
     if valor in (None, ''):
         return None
     dias = ler_inteiro('dias', valor)
@@ -174,6 +194,8 @@ def ler_dias(valor):
 
 
 class RestauranteViewSet(ModelViewSet):
+    """CRUD de restaurantes, com escrita reservada ao superusuário."""
+
     queryset = Restaurante.objects.all()
     serializer_class = RestauranteSerializer
     permission_classes = [IsAuthenticated, ExigeVinculo, SomenteSuperusuarioEscreve]
@@ -186,6 +208,8 @@ class RestauranteViewSet(ModelViewSet):
 
 
 class UsuarioViewSet(ModelViewSet):
+    """CRUD de usuários, limitado ao restaurante, com rota para a conta atual."""
+
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
     permission_classes = [IsAuthenticated, ExigeVinculo, GestaoEscreve]
@@ -208,6 +232,8 @@ class UsuarioViewSet(ModelViewSet):
 
 
 class AlimentoViewSet(ModelViewSet):
+    """CRUD de alimentos do restaurante visível ao usuário."""
+
     queryset = Alimento.objects.all()
     serializer_class = AlimentoSerializer
     permission_classes = [IsAuthenticated, ExigeVinculo, GestaoEscreve]
@@ -219,6 +245,8 @@ class AlimentoViewSet(ModelViewSet):
 
 
 class EstoqueViewSet(ModelViewSet):
+    """CRUD de estoques e ações de validade e ordem de utilização."""
+
     queryset = Estoque.objects.all()
     serializer_class = EstoqueSerializer
     permission_classes = [IsAuthenticated, ExigeVinculo, GestaoEscreve]
@@ -242,6 +270,8 @@ class EstoqueViewSet(ModelViewSet):
 
 
 class DesperdicioViewSet(ModelViewSet):
+    """CRUD do histórico de desperdícios com filtros por query string."""
+
     queryset = Desperdicio.objects.all()
     serializer_class = DesperdicioSerializer
     permission_classes = [IsAuthenticated, ExigeVinculo]
@@ -282,6 +312,8 @@ class DesperdicioViewSet(ModelViewSet):
 
 
 class AlertaValidadeView(APIView):
+    """Expõe alertas calculados para os estoques do usuário."""
+
     permission_classes = [IsAuthenticated, ExigeVinculo]
     serializer_class = AlertaValidadeSerializer
 
@@ -292,6 +324,8 @@ class AlertaValidadeView(APIView):
 
 
 class RelatorioDesperdicioView(APIView):
+    """Valida os filtros do relatório e delega o cálculo às consultas."""
+
     permission_classes = [IsAuthenticated, ExigeVinculo]
     serializer_class = RelatorioDesperdicioSerializer
 
@@ -316,6 +350,8 @@ class RelatorioDesperdicioView(APIView):
 
 
 class ConfiguracaoRestauranteSerializer(serializers.ModelSerializer):
+    """Expõe somente a configuração de antecedência do alerta."""
+
     class Meta:
         model = Restaurante
         fields = ['id', 'nome', 'dias_alerta_validade']
@@ -323,6 +359,8 @@ class ConfiguracaoRestauranteSerializer(serializers.ModelSerializer):
 
 
 class ConfiguracaoRestauranteView(APIView):
+    """Consulta ou atualiza a configuração do restaurante selecionado."""
+
     permission_classes = [IsAuthenticated, ExigeVinculo, GestaoEscreve]
 
     def restaurante_alvo(self, request):

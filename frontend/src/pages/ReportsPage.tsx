@@ -4,6 +4,7 @@ import { PageHeader, Rank, SecondaryButton, Summary, downloadFile } from "./ui";
 
 export default function ReportsPage({ foods, stocks, waste }: PageProps) {
   const now = new Date();
+  // Os indicadores desta tela são derivados dos recursos carregados no frontend.
   const soon = stocks.filter((stock) => stock.validade && stock.validade >= localDateString(now) && stock.validade <= localDateOffset(3)).length;
   const monthWaste = waste.filter((record) => record.data.startsWith(localDateString(now).slice(0, 7)));
   const categoryCounts = foods.reduce<Record<string, number>>((totals, food) => {
@@ -13,6 +14,7 @@ export default function ReportsPage({ foods, stocks, waste }: PageProps) {
   const categories = Object.entries(categoryCounts).sort((left, right) => right[1] - left[1]);
   const maxCategoryCount = Math.max(1, ...categories.map(([, count]) => count));
   const recentWeeks = Array.from({ length: 4 }, (_, index) => {
+    // Conta registros, sem somar quantidades que podem usar unidades diferentes.
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (3 - index) * 7 - 6);
     const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (3 - index) * 7 + 1);
     const count = waste.filter((record) => {

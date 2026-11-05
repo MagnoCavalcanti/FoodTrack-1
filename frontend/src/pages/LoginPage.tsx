@@ -11,6 +11,7 @@ type LoginPageProps = {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
+// A página é visual; o componente pai controla os campos e executa o login.
 export default function LoginPage({ username, password, loginError, loadError, onUsernameChange, onPasswordChange, onSubmit }: LoginPageProps) {
   return (
     <main className="grid min-h-screen place-items-center bg-[var(--canvas)] px-4">

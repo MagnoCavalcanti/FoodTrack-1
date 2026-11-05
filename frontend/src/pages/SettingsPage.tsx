@@ -14,6 +14,7 @@ export default function SettingsPage({ notify, user, users, restaurants, saveUse
   const [memberForm, setMemberForm] = useState({ nome: "", username: "", email: "", perfil: "funcionario", password: "", restaurante: String(user.restaurante || "") });
   const tabs = [["Restaurante", "Dados disponíveis na API"], ["Equipe", "Contas do restaurante"]];
 
+  // A edição dos dados do restaurante é reservada ao superusuário também no backend.
   const submitRestaurant = async (event: FormEvent) => {
     event.preventDefault();
     if (!restaurant || !user.is_superuser) return;
@@ -34,6 +35,7 @@ export default function SettingsPage({ notify, user, users, restaurants, saveUse
     setSaving(true);
     setError("");
     try {
+      // Usuário comum herda o restaurante atual; superusuário pode indicar um restaurante.
       await saveUser({
         nome: memberForm.nome,
         username: memberForm.username,

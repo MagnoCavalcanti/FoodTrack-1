@@ -86,7 +86,7 @@ export function formatQuantity(quantity: string) {
   return Number.isFinite(value) ? quantityFormatter.format(value) : quantity;
 }
 
-const configuredApiUrl = (import.meta.env.VITE_API_URL || "/api").replace(/\/+$/, "");
+const configuredApiUrl = (import.meta.env?.VITE_API_URL || "/api").replace(/\/+$/, "");
 const API_URL = configuredApiUrl.startsWith("/")
   ? configuredApiUrl
   : configuredApiUrl.endsWith("/api")

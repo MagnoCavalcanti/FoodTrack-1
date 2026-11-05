@@ -45,7 +45,9 @@ const navigation: { label: string; icon: IconName }[] = [
   { label: "Configurações", icon: "settings" },
 ];
 
+// Componente raiz: concentra sessão, dados compartilhados e navegação entre telas.
 export default function App() {
+  // Estado da interface e da tela atual.
   const [active, setActive] = useState("Dashboard");
   const [search, setSearch] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -55,6 +57,7 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [wasteForm, setWasteForm] = useState({ estoque: "", quantidade: "", motivo: "outro", descricao: "" });
   const [wasteError, setWasteError] = useState("");
+  // A sessão é restaurada do armazenamento local quando a aplicação abre.
   const [token, setToken] = useState(() => window.localStorage.getItem("foodtrack-token") || "");
   const [username, setUsername] = useState(() => window.localStorage.getItem("foodtrack-username") || "");
   const [password, setPassword] = useState("");
@@ -62,12 +65,14 @@ export default function App() {
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  // Recursos carregados da API e compartilhados pelas páginas.
   const [users, setUsers] = useState<User[]>([]);
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [wasteRecords, setWasteRecords] = useState<WasteRecord[]>([]);
 
+  // Recarrega os recursos após gravações e atualiza o usuário em contexto.
   const refreshResources = async (sessionToken = token, currentUsername = username) => {
     const resources = await getResources(sessionToken);
     setRestaurants(resources.restaurants);
@@ -78,6 +83,7 @@ export default function App() {
     setUser(resources.users.find((item) => item.username === currentUsername) || resources.users[0] || null);
   };
 
+  // Carrega os dados quando há sessão; evita atualizar estado após desmontar o efeito.
   useEffect(() => {
     if (!token) return;
     let active = true;
@@ -111,11 +117,13 @@ export default function App() {
     return () => { active = false; };
   }, [token, username]);
 
+  // Exibe uma confirmação temporária na interface.
   const notify = (message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(""), 3200);
   };
 
+  // Autentica na API e persiste token e username para restaurar a sessão.
   const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoginError("");
@@ -131,6 +139,7 @@ export default function App() {
     }
   };
 
+  // Encerra a sessão local e limpa os dados mantidos em memória.
   const logout = () => {
     window.localStorage.removeItem("foodtrack-token");
     window.localStorage.removeItem("foodtrack-username");
@@ -144,6 +153,7 @@ export default function App() {
     setActive("Dashboard");
   };
 
+  // Cadastro é composto por duas operações: primeiro alimento, depois estoque.
   const submitFood = async (data: { nome: string; categoria: string; medida: string; quantidade: string; validade: string; localizacao: string; restaurante?: number }) => {
     const food = await createFood(token, {
       nome: data.nome,
@@ -151,6 +161,7 @@ export default function App() {
       medida: data.medida,
       ...(data.restaurante ? { restaurante: data.restaurante } : {}),
     });
+    // O ID retornado ao criar o alimento é usado como relação do novo estoque.
     try {
       await createStock(token, {
         alimento: food.id,
@@ -161,6 +172,7 @@ export default function App() {
       });
     } catch (error) {
       let refreshMessage = "";
+      // Mesmo se o estoque falhar, tenta refletir o alimento já criado na tela.
       try {
         await refreshResources();
       } catch (refreshError) {
@@ -175,6 +187,7 @@ export default function App() {
     }
   };
 
+  // Grava desperdício e sincroniza os recursos exibidos nas telas.
   const submitWaste = async (data: { motivo: string; descricao: string; quantidade: string; data: string; estoque: number }) => {
     await createWaste(token, data);
     try {
@@ -184,6 +197,7 @@ export default function App() {
     }
   };
 
+  // Atualiza um estoque existente e recarrega os dados compartilhados.
   const saveStock = async (id: number, data: Partial<Omit<StockItem, "id">>) => {
     await updateStock(token, id, data);
     try {
@@ -193,6 +207,7 @@ export default function App() {
     }
   };
 
+  // Cria usuário e atualiza a lista de equipe.
   const saveUser = async (data: { username: string; nome: string; email: string; perfil: string; password: string; restaurante?: number }) => {
     await createUser(token, data);
     try {
@@ -202,6 +217,7 @@ export default function App() {
     }
   };
 
+  // Atualiza dados do restaurante e sincroniza novamente as listas.
   const saveRestaurant = async (id: number, data: { nome: string; cnpj: string; dias_alerta_validade: number }) => {
     await updateRestaurant(token, id, data);
     try {
@@ -211,6 +227,7 @@ export default function App() {
     }
   };
 
+  // Sem token, somente o formulário de login é renderizado.
   if (!token) {
     return (
       <LoginPage
@@ -225,10 +242,12 @@ export default function App() {
     );
   }
 
+  // Aguarda o carregamento ou apresenta falhas antes de mostrar o sistema.
   if (loading || !user) {
     return <LoadingPage loading={loading} loadError={loadError} onLogout={logout} />;
   }
 
+  // Prepara dados derivados localmente para alertas, contadores e notificações.
   const foodById = new Map(foodItems.map((food) => [food.id, food]));
   const today = localDateString();
   const threeDaysFromToday = localDateOffset(3);
@@ -257,11 +276,13 @@ export default function App() {
   const expiredCount = stockItems.filter((stock) => stock.validade && stock.validade < today).length;
   const wasteThisMonth = wasteRecords.filter((record) => record.data.startsWith(today.slice(0, 7))).length;
   const notifications = foodsExpiringToday.slice(0, 5);
+  // Abre o formulário de desperdício, opcionalmente pré-selecionando um estoque.
   const openWaste = (stockId?: number) => {
     setWasteForm({ estoque: stockId ? String(stockId) : "", quantidade: "", motivo: "outro", descricao: "" });
     setWasteError("");
     setWasteModal(true);
   };
+  // Contrato comum passado às páginas de recursos.
   const pageProps = {
     page: active,
     navigate: setActive,
@@ -281,6 +302,7 @@ export default function App() {
     saveRestaurant,
   };
 
+  // Estrutura compartilhada: menu lateral, cabeçalho, conteúdo e ações globais.
   return (
     <div className="min-h-screen bg-[var(--canvas)] text-[var(--ink)]">
       {mobileMenu && <button className="fixed inset-0 z-40 bg-slate-950/35 lg:hidden" aria-label="Fechar menu" onClick={() => setMobileMenu(false)} />}
@@ -375,6 +397,7 @@ export default function App() {
           </div>
         </header>
 
+        {/* A tela é escolhida pelo estado active; não há roteamento por URL aqui. */}
         <main className="mx-auto max-w-[1440px] px-4 py-7 sm:px-6 xl:px-10 xl:py-9">
           {active === "Dashboard" && (
             <DashboardPage
@@ -399,6 +422,7 @@ export default function App() {
         </main>
       </div>
 
+      {/* Modal compartilhado para registrar desperdícios a partir de diferentes telas. */}
       {wasteModal && (
         <div className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/45 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="waste-title">
           <form onSubmit={async (event) => {
@@ -431,6 +455,7 @@ export default function App() {
         </div>
       )}
 
+      {/* Região acessível para confirmações temporárias das operações. */}
       {toast && <div aria-live="polite" className="fixed bottom-5 left-1/2 z-[80] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-xl bg-[var(--ink)] px-5 py-3.5 text-center text-sm font-semibold text-white shadow-xl">{toast}</div>}
     </div>
   );

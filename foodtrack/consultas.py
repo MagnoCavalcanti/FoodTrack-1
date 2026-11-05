@@ -8,6 +8,7 @@ from .models import Desperdicio, Estoque
 
 
 def estoques_visiveis(user):
+    """Retorna estoques restritos ao restaurante do usuário."""
     return filtrar_por_restaurante(
         Estoque.objects.select_related('alimento__restaurante'),
         user,
@@ -16,6 +17,7 @@ def estoques_visiveis(user):
 
 
 def desperdicios_visiveis(user):
+    """Retorna desperdícios restritos pelo restaurante do estoque associado."""
     return filtrar_por_restaurante(
         Desperdicio.objects.select_related('estoque__alimento__restaurante', 'usuario'),
         user,
@@ -41,6 +43,7 @@ def classificar_validade(estoque, hoje, dias_override=None):
 
 
 def representar_estoque(estoque, **extras):
+    """Monta o formato compartilhado pelas respostas de estoque calculadas."""
     return {
         'id': estoque.id,
         'alimento': estoque.alimento_id,
@@ -58,6 +61,7 @@ def representar_estoque(estoque, **extras):
 
 
 def proximos_do_vencimento(user, hoje, dias_override=None):
+    """Seleciona estoques positivos dentro do limite de validade, incluindo vencidos."""
     itens = []
     consulta = (
         estoques_visiveis(user)
@@ -79,6 +83,7 @@ def proximos_do_vencimento(user, hoje, dias_override=None):
 
 
 def alertas_de_validade(user, hoje, dias_override=None):
+    """Converte estoques próximos em mensagens adequadas para a API."""
     alertas = []
     for item in proximos_do_vencimento(user, hoje, dias_override):
         alertas.append({
@@ -100,6 +105,7 @@ def alertas_de_validade(user, hoje, dias_override=None):
 
 
 def mensagem_alerta_texto(nome, localizacao, situacao, dias_restantes):
+    """Gera uma frase para o estado de validade informado."""
     if situacao == 'vencido':
         return f'{nome} venceu há {abs(dias_restantes)} dia(s) em {localizacao}.'
     if situacao == 'hoje':
@@ -108,6 +114,7 @@ def mensagem_alerta_texto(nome, localizacao, situacao, dias_restantes):
 
 
 def ordem_de_utilizacao(user):
+    """Ordena estoques positivos para priorizar validade mais próxima."""
     consulta = (
         estoques_visiveis(user)
         .filter(quantidade_atual__gt=0)
@@ -120,6 +127,7 @@ def ordem_de_utilizacao(user):
 
 
 def relatorio_desperdicio(user, data_inicio, data_fim, agrupar):
+    """Agrupa desperdícios visíveis no período e calcula totais e percentuais."""
     consulta = desperdicios_visiveis(user)
     if data_inicio is not None:
         consulta = consulta.filter(data__gte=data_inicio)
@@ -164,6 +172,7 @@ def relatorio_desperdicio(user, data_inicio, data_fim, agrupar):
 
 
 def chave_do_grupo(registro, agrupar):
+    """Obtém a chave e o rótulo conforme o agrupamento escolhido."""
     if agrupar == 'alimento':
         alimento = registro.estoque.alimento
         return str(alimento.pk), alimento.nome

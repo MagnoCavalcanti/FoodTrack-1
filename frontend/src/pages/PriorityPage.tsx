@@ -5,6 +5,7 @@ import { PageHeader, SecondaryButton, Summary } from "./ui";
 
 export default function PriorityPage({ navigate, openWaste, foods, stocks }: PageProps) {
   const [filter, setFilter] = useState("Todos");
+  // Combina estoques e alimentos pelos IDs e classifica a validade no navegador.
   const priorities = stocks.filter((stock) => stock.validade && stock.validade <= localDateOffset(3)).map((stock) => {
     const food = foods.find((item) => item.id === stock.alimento);
     if (!food) return null;
@@ -22,6 +23,7 @@ export default function PriorityPage({ navigate, openWaste, foods, stocks }: Pag
   return (
     <>
       <PageHeader eyebrow="Ação preventiva" title="Itens Prioritários" description="Alimentos que devem ser utilizados primeiro para evitar vencimentos e reduzir perdas." actions={<SecondaryButton onClick={() => navigate("Dashboard")}>Voltar ao dashboard</SecondaryButton>} />
+      {/* Estes resumos são valores demonstrativos, não calculados dos dados da API. */}
       <div className="grid gap-4 sm:grid-cols-3">
         <Summary label="Exigem atenção" value="8 itens" detail="Vencem nos próximos 3 dias" icon="calendar" tone="warning" />
         <Summary label="Vencem hoje" value="2 itens" detail="Ação imediata recomendada" icon="trash" tone="danger" />

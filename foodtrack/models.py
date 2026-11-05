@@ -10,6 +10,7 @@ MENSAGEM_CNPJ = 'Informe o CNPJ no formato 00.000.000/0000-00.'
 
 
 def mascarar_cnpj(valor):
+    """Padroniza os 14 dígitos do CNPJ sem validar seus dígitos verificadores."""
     # Aceita os 14 dígitos ou o texto já mascarado e devolve 00.000.000/0000-00.
     if valor is None:
         return valor
@@ -39,11 +40,13 @@ class Restaurante(models.Model):
     )
 
     def clean(self):
+        """Normaliza e valida o formato do CNPJ antes da gravação."""
         self.cnpj = mascarar_cnpj(self.cnpj)
         if not CNPJ_MASCARA.fullmatch(self.cnpj or ''):
             raise ValidationError({'cnpj': MENSAGEM_CNPJ})
 
     def save(self, *args, **kwargs):
+        """Executa validação completa do modelo antes de persistir."""
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -52,6 +55,8 @@ class Restaurante(models.Model):
         return self.nome
 
 class Usuario(AbstractUser):
+    """Usuário Django estendido com perfil e vínculo opcional a restaurante."""
+
     class Perfil(models.TextChoices):
         SUPERUSER = 'superuser', 'Administrador do site'
         PROPRIETARIO = 'proprietario', 'Proprietário'
@@ -117,11 +122,13 @@ class Usuario(AbstractUser):
         self.validar_perfil()
 
     def ajustar_perfil(self):
+        """Mantém o perfil administrativo coerente com is_superuser."""
         # Superusuário não usa perfil de restaurante.
         if self.is_superuser:
             self.perfil = self.Perfil.SUPERUSER
 
     def validar_restaurante(self):
+        """Exige restaurante para contas que não são superusuárias."""
         # Superusuário pode existir sem restaurante.
         # Qualquer usuário normal precisa ter um restaurante associado.
         if not self.is_superuser and self.restaurante_id is None:
@@ -130,6 +137,7 @@ class Usuario(AbstractUser):
             })
 
     def validar_perfil(self):
+        """Aceita somente perfis operacionais para usuários comuns."""
         if self.is_superuser:
             return
         if self.perfil in (
@@ -156,6 +164,8 @@ class Usuario(AbstractUser):
 
 
 class Alimento(models.Model):
+    """Ingrediente cadastrado para um restaurante e sua unidade de medida."""
+
     class UnidadeMedida(models.TextChoices):
         QUILOGRAMA = "Kg", "Kg"
         GRAMA = "g", "g"
@@ -186,6 +196,8 @@ class Alimento(models.Model):
 
 
 class Estoque(models.Model):
+    """Lote/registro de quantidade de um alimento em um local de armazenamento."""
+
     # Registra a quantidade atual de um alimento em um ponto de armazenamento.
     quantidade_atual = models.DecimalField(max_digits=10, decimal_places=3)
     entrada = models.DateField()
@@ -208,6 +220,8 @@ class Estoque(models.Model):
 
 
 class Desperdicio(models.Model):
+    """Registro de perda relacionado ao estoque e ao usuário que o lançou."""
+
     class Motivo(models.TextChoices):
         VENCIMENTO = 'vencimento', 'Vencimento'
         ARMAZENAMENTO = 'armazenamento_inadequado', 'Armazenamento inadequado'

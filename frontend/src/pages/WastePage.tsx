@@ -6,6 +6,7 @@ import { PageHeader, PrimaryButton, SecondaryButton, Summary, downloadFile } fro
 export default function WastePage({ openWaste, waste, stocks, foods, users }: PageProps) {
   const [period, setPeriod] = useState("Este mês");
   const now = new Date();
+  // O histórico já veio da API; o filtro de período desta tela é local.
   const visibleRecords = waste.filter((record) => {
     const date = new Date(`${record.data}T00:00:00`);
     if (period === "Hoje") return record.data === localDateString(now);
@@ -14,6 +15,7 @@ export default function WastePage({ openWaste, waste, stocks, foods, users }: Pa
     return true;
   });
   const userById = new Map(users.map((item) => [item.id, item]));
+  // Os registros guardam IDs; a página resolve as relações para exibir nomes.
   const resolveUser = (id: number) => userById.get(id)?.nome || `Usuário ${id}`;
   const resolveStock = (id: number) => stocks.find((stock) => stock.id === id);
   const resolveFood = (id: number) => {

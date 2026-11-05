@@ -9,12 +9,14 @@ export default function CreateFoodPage({ navigate, notify, saveFood, user, resta
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // Atualiza um campo mantendo os valores já digitados nos demais.
   const update = (key: string, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setSaving(true);
     setError("");
     try {
+      // App executa a criação do alimento e, em seguida, do estoque inicial.
       await saveFood({
         nome: form.name,
         categoria: form.category,
