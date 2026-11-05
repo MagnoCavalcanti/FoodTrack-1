@@ -116,7 +116,8 @@ npm run dev
 ```
 
 Em desenvolvimento local, o frontend chama `/api` na própria origem do Vite, e
-o Vite encaminha as requisições para `http://127.0.0.1:8000`. Isso evita que o
+o Vite encaminha as requisições para o endereço de `BACKEND_URL` no
+`frontend/.env` (padrão `http://127.0.0.1:8000`). Isso evita que o
 navegador precise acessar a API diretamente ou depender de CORS. Para apontar
 diretamente para outra API, defina `VITE_API_URL`, por exemplo
 `VITE_API_URL=https://api.exemplo.com/api`, e permita a origem do frontend em
@@ -207,10 +208,11 @@ O arquivo `frontend/.env.example` usa o proxy local do Vite:
 
 ```env
 VITE_API_URL=/api
+BACKEND_URL=http://127.0.0.1:8000
 ```
 
-Copie-o para `frontend/.env` caso ainda não exista ou ajuste a variável para
-`/api`. O proxy encaminha esse caminho para o backend em `127.0.0.1:8000`.
+Copie-o para `frontend/.env` caso ainda não exista. `VITE_API_URL=/api` faz o
+navegador chamar o proxy do Vite, e `BACKEND_URL` é o destino desse proxy.
 
 No Windows (PowerShell), copie o exemplo com:
 
