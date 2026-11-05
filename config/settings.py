@@ -88,7 +88,13 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-if env('DB_NAME', default=None):
+# O Render injeta a URL interna do Postgres em DATABASE_URL.
+# DB_NAME continua valendo no ambiente local, quando essa URL não existe.
+if env('DATABASE_URL', default=None):
+    DATABASES = {
+        'default': env.db('DATABASE_URL'),
+    }
+elif env('DB_NAME', default=None):
     DATABASES = {
         'default': {
             'ENGINE': env('DB_ENGINE', default='django.db.backends.postgresql'),
