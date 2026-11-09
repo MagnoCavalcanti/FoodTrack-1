@@ -115,13 +115,10 @@ cd frontend
 npm run dev
 ```
 
-Em desenvolvimento local, o frontend chama `/api` na própria origem do Vite, e
-o Vite encaminha as requisições para o endereço de `BACKEND_URL` no
-`frontend/.env` (padrão `http://127.0.0.1:8000`). Isso evita que o
-navegador precise acessar a API diretamente ou depender de CORS. Para apontar
-diretamente para outra API, defina `VITE_API_URL`, por exemplo
-`VITE_API_URL=https://api.exemplo.com/api`, e permita a origem do frontend em
-`CORS_ALLOWED_ORIGINS` no backend remoto.
+O frontend chama o backend pelo endereço de `VITE_API_URL` no
+`frontend/.env` (padrão `http://127.0.0.1:8000`). No Render, use a URL pública
+do backend nessa mesma variável. A origem do frontend precisa estar em
+`CORS_ALLOWED_ORIGINS` no backend.
 
 O login usa o endpoint `POST /api/token/` e armazena o token no armazenamento
 local do navegador. O botão com o nome do usuário encerra a sessão.
@@ -204,15 +201,15 @@ cd frontend
 npm ci
 ```
 
-O arquivo `frontend/.env.example` usa o proxy local do Vite:
+O arquivo `frontend/.env.example` aponta direto para o backend:
 
 ```env
-VITE_API_URL=/api
-BACKEND_URL=http://127.0.0.1:8000
+VITE_API_URL=http://127.0.0.1:8000
 ```
 
-Copie-o para `frontend/.env` caso ainda não exista. `VITE_API_URL=/api` faz o
-navegador chamar o proxy do Vite, e `BACKEND_URL` é o destino desse proxy.
+Copie-o para `frontend/.env` caso ainda não exista. `VITE_API_URL` é o endereço
+que o navegador chama. O código acrescenta `/api` quando a URL ainda não termina
+com esse caminho.
 
 No Windows (PowerShell), copie o exemplo com:
 
