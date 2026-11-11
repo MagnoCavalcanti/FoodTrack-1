@@ -64,6 +64,23 @@ async function carregarRecursos(token: string): Promise<RecursosCarregados> {
   return { user, users, restaurants, foods, stocks, waste, expiringStocks, usageOrder, alerts, motivos, relatorioMes };
 }
 
+const QUANTIDADE_MINIMA_BAIXA = 0.01;
+
+/** Formata a quantidade da baixa com até 3 casas, sem zeros à direita. */
+function formatarQuantidadeBaixa(valor: number) {
+  return valor.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+/** Mantém a quantidade digitada entre 0,01 e o saldo do lote, preservando um número incompleto. */
+function limitarQuantidadeBaixa(valor: string, maximo: number) {
+  const normalizado = valor.replace(",", ".");
+  if (normalizado === "" || normalizado === "0" || normalizado === "0.") return normalizado;
+  const numero = Number(normalizado);
+  if (!Number.isFinite(numero)) return "";
+  if (numero > maximo) return formatarQuantidadeBaixa(maximo);
+  return normalizado;
+}
+
 /** Descreve o prazo de alerta usado nas mensagens, a partir da configuração do restaurante. */
 function textoDoPrazo(user: User, restaurants: Restaurant[]) {
   const proprio = restaurants.find((item) => item.id === user.restaurante);
@@ -347,9 +364,10 @@ export default function App() {
   });
   // Abre o formulário de desperdício, opcionalmente pré-selecionando um estoque.
   const openWaste = (stockId?: number) => {
+    const saldo = stockId ? Number(stockItems.find((stock) => stock.id === stockId)?.quantidade_atual) : Number.NaN;
     setWasteForm({
       estoque: stockId ? String(stockId) : "",
-      quantidade: "",
+      quantidade: Number.isFinite(saldo) && saldo >= QUANTIDADE_MINIMA_BAIXA ? formatarQuantidadeBaixa(QUANTIDADE_MINIMA_BAIXA) : "",
       motivo: "outro",
       descricao: "",
     });
@@ -510,8 +528,14 @@ export default function App() {
           <form onSubmit={async (event) => {
             event.preventDefault();
             setWasteError("");
+            const saldo = Number(stockItems.find((stock) => stock.id === Number(wasteForm.estoque))?.quantidade_atual);
+            const quantidade = Number(wasteForm.quantidade.replace(",", "."));
+            if (!Number.isFinite(saldo) || saldo < QUANTIDADE_MINIMA_BAIXA || !Number.isFinite(quantidade) || quantidade < QUANTIDADE_MINIMA_BAIXA || quantidade > saldo) {
+              setWasteError("Informe uma quantidade entre 0,01 e o saldo disponível no lote.");
+              return;
+            }
             try {
-              await submitWaste({ motivo: wasteForm.motivo, descricao: wasteForm.descricao, quantidade: wasteForm.quantidade, data: localDateString(), estoque: Number(wasteForm.estoque) });
+              await submitWaste({ motivo: wasteForm.motivo, descricao: wasteForm.descricao, quantidade: formatarQuantidadeBaixa(quantidade), data: localDateString(), estoque: Number(wasteForm.estoque) });
               setWasteModal(false);
               notify("Desperdício registrado.");
             } catch (error) {
@@ -523,8 +547,35 @@ export default function App() {
               <button type="button" onClick={() => setWasteModal(false)} className="grid size-11 place-items-center rounded-xl bg-[var(--surface-soft)]" aria-label="Fechar modal"><Icon name="close" /></button>
             </div>
             <div className="mt-7 grid gap-5 sm:grid-cols-2">
-              <label className="sm:col-span-2"><span className="field-label">Estoque *</span><select required value={wasteForm.estoque} onChange={(event) => setWasteForm((current) => ({ ...current, estoque: event.target.value }))} className="field"><option value="">Selecione um alimento e local</option>{stockItems.map((stock) => { const food = foodById.get(stock.alimento); return <option key={stock.id} value={stock.id}>{food?.nome || `Alimento ${stock.alimento}`} · {stock.localizacao} ({formatQuantity(stock.quantidade_atual)} {food?.medida || ""})</option>; })}</select></label>
-              <label><span className="field-label">Quantidade *</span><input required value={wasteForm.quantidade} onChange={(event) => setWasteForm((current) => ({ ...current, quantidade: event.target.value }))} type="number" min="0.001" step="0.001" className="field" placeholder="0,0" /></label>
+              <label className="sm:col-span-2"><span className="field-label">Estoque *</span><select required value={wasteForm.estoque} onChange={(event) => {
+                const estoque = event.target.value;
+                const saldo = Number(stockItems.find((stock) => stock.id === Number(estoque))?.quantidade_atual);
+                setWasteForm((current) => {
+                  const informada = Number(current.quantidade.replace(",", "."));
+                  const quantidade = !Number.isFinite(saldo) || saldo < QUANTIDADE_MINIMA_BAIXA
+                    ? ""
+                    : !Number.isFinite(informada) || informada < QUANTIDADE_MINIMA_BAIXA
+                      ? "0.01"
+                      : limitarQuantidadeBaixa(current.quantidade, saldo);
+                  return { ...current, estoque, quantidade };
+                });
+              }} className="field"><option value="">Selecione um alimento e local</option>{stockItems.map((stock) => { const food = foodById.get(stock.alimento); return <option key={stock.id} value={stock.id}>{food?.nome || `Alimento ${stock.alimento}`} · {stock.localizacao} ({formatQuantity(stock.quantidade_atual)} {food?.medida || ""})</option>; })}</select></label>
+              {(() => {
+                const lote = stockItems.find((stock) => stock.id === Number(wasteForm.estoque));
+                const saldo = Number(lote?.quantidade_atual);
+                const medida = lote ? foodById.get(lote.alimento)?.medida || "" : "";
+                const disponivel = Number.isFinite(saldo) && saldo >= QUANTIDADE_MINIMA_BAIXA;
+                const valorRange = disponivel ? Math.min(saldo, Math.max(QUANTIDADE_MINIMA_BAIXA, Number(wasteForm.quantidade.replace(",", ".")) || QUANTIDADE_MINIMA_BAIXA)) : QUANTIDADE_MINIMA_BAIXA;
+                return <div className="sm:col-span-2"><span className="field-label">Quantidade *</span>{disponivel ? <>
+                  <input type="range" min={QUANTIDADE_MINIMA_BAIXA} max={saldo} step={QUANTIDADE_MINIMA_BAIXA} value={valorRange} onChange={(event) => setWasteForm((current) => ({ ...current, quantidade: formatarQuantidadeBaixa(Number(event.target.value)) }))} className="h-11 w-full accent-[var(--brand)]" aria-label="Ajustar quantidade no intervalo disponível" />
+                  <span className="mt-1 flex justify-between text-xs text-[var(--muted)]"><span>0,01 {medida}</span><span>{formatQuantity(lote?.quantidade_atual || "")} {medida}</span></span>
+                  <input required type="number" min={QUANTIDADE_MINIMA_BAIXA} max={saldo} step={QUANTIDADE_MINIMA_BAIXA} value={wasteForm.quantidade} onChange={(event) => setWasteForm((current) => ({ ...current, quantidade: limitarQuantidadeBaixa(event.target.value, saldo) }))} onBlur={() => setWasteForm((current) => {
+                    const numero = Number(current.quantidade.replace(",", "."));
+                    const ajustada = !Number.isFinite(numero) || numero < QUANTIDADE_MINIMA_BAIXA ? QUANTIDADE_MINIMA_BAIXA : Math.min(saldo, numero);
+                    return { ...current, quantidade: formatarQuantidadeBaixa(ajustada) };
+                  })} className="field mt-3" aria-label="Quantidade da baixa" />
+                </> : <p className="rounded-xl bg-[var(--warning-soft)] p-3 text-sm text-[var(--warning-ink)]">{lote ? "Este lote não tem saldo suficiente para uma baixa mínima de 0,01." : "Selecione um lote para definir a quantidade entre 0,01 e o saldo disponível."}</p>}</div>;
+              })()}
               <label><span className="field-label">Motivo *</span><select required value={wasteForm.motivo} onChange={(event) => setWasteForm((current) => ({ ...current, motivo: event.target.value }))} className="field">{motivos.map((motivo) => <option key={motivo.valor} value={motivo.valor}>{motivo.rotulo}</option>)}</select></label>
               <label className="sm:col-span-2"><span className="field-label">Descrição</span><input maxLength={300} value={wasteForm.descricao} onChange={(event) => setWasteForm((current) => ({ ...current, descricao: event.target.value }))} className="field" placeholder="Detalhe opcional da baixa" /></label>
             </div>
