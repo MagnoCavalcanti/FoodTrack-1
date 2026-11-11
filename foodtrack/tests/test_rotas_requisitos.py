@@ -149,7 +149,7 @@ class RotasRequisitosTests(APITestCase):
         )
         Desperdicio.objects.create(
             motivo='erro_de_preparo',
-            quantidade='4.000',
+            quantidade='2.000',
             data=self.hoje,
             estoque=self.proximo,
             usuario=self.gerente,
@@ -172,7 +172,7 @@ class RotasRequisitosTests(APITestCase):
             motivo='vencimento',
             quantidade='4.000',
             data=self.hoje,
-            estoque=self.vencido,
+            estoque=self.folgado,
             usuario=self.funcionario,
         )
         Desperdicio.objects.create(

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
@@ -138,6 +140,28 @@ class CrudEscopoTests(APITestCase):
         self.assertEqual(registro.estoque, estoque)
         self.assertEqual(registro.motivo, 'outro')
         self.assertEqual(resposta.data['usuario'], self.ana.pk)
+        estoque.refresh_from_db()
+        self.assertEqual(estoque.quantidade_atual, 6)
+
+    def test_desperdicio_maior_que_o_estoque_e_recusado_sem_alterar_o_lote(self):
+        estoque = Estoque.objects.create(
+            alimento=self.alimento_casa,
+            quantidade_atual='1.500',
+            entrada='2026-09-01',
+            localizacao='Despensa',
+        )
+        self.autenticar(self.ana)
+        resposta = self.client.post(reverse('api-desperdicio-list'), {
+            'motivo': 'vencimento',
+            'quantidade': '1.501',
+            'data': '2026-09-29',
+            'estoque': estoque.pk,
+        }, format='json')
+        self.assertEqual(resposta.status_code, 400)
+        self.assertIn('quantidade', resposta.data)
+        self.assertFalse(Desperdicio.objects.filter(estoque=estoque).exists())
+        estoque.refresh_from_db()
+        self.assertEqual(estoque.quantidade_atual, Decimal('1.500'))
 
     def test_usuario_comum_cadastra_colega_no_proprio_restaurante(self):
         self.autenticar(self.ana)

@@ -229,12 +229,12 @@ relacionam ao estoque por `Desperdicio.estoque`.
 | Desperdícios | Histórico: custo estimado | Nenhum | **SEM FONTE NA API**. |
 | Desperdícios | Histórico: responsável | `Desperdicio.usuario` → `GET /api/usuarios/`: `nome` | **Disponível** ao combinar IDs; `usuario` é atribuído pelo backend no registro. |
 | Desperdícios | Filtros por período e motivo | Nenhum parâmetro de filtro | **SEM FONTE NA API**; filtragem local dos registros disponíveis é possível por data ou texto da descrição. |
-| Desperdícios | Registrar desperdício | `POST /api/desperdicios/`: `descricao`, `quantidade`, `data`, `estoque` | **Disponível**. O usuário é preenchido pelo servidor. A criação do registro não reduz automaticamente `Estoque.quantidade_atual`. |
+| Desperdícios | Registrar desperdício | `POST /api/desperdicios/`: `descricao`, `quantidade`, `data`, `estoque` | **Disponível**. O usuário é preenchido pelo servidor. A criação desconta `quantidade` de `Estoque.quantidade_atual` do lote. Quantidade maior que a disponível ou menor ou igual a zero é recusada com HTTP 400. |
 | Itens Prioritários | Lista ordenada por validade | `GET /api/estoques/`: `validade` | **Calculável** no cliente; a ordenação fixa da API permanece por data de entrada. |
 | Itens Prioritários | Categoria, quantidade e perda estimada | Estoque/alimento fornecem `validade`, `categoria`, `quantidade_atual` e `medida` | Categoria, quantidade e ordenação por validade são possíveis; perda estimada não pode ser obtida sem custo. |
 | Itens Prioritários | Sugestão de uso | Nenhum | **SEM FONTE NA API**. |
 | Itens Prioritários | Ação “usar no preparo” | Nenhum endpoint/ação de consumo | **SEM FONTE NA API**. |
-| Itens Prioritários | Ação “registrar baixa” | `PATCH /api/estoques/{id}/` permite alterar `quantidade_atual`; `POST /api/desperdicios/` registra uma perda | Há operações genéricas, mas não uma ação própria. Registrar desperdício não decrementa o estoque automaticamente; para fazê-lo, a interface teria de atualizar estoque separadamente. |
+| Itens Prioritários | Ação “registrar baixa” | `POST /api/desperdicios/` registra a perda e desconta a quantidade do lote | A baixa usa o lote escolhido. Quantidade acima do estoque atual é recusada. |
 | Relatórios | Economia gerada, desperdício evitado em kg, itens aproveitados, acurácia do estoque | Nenhum campo/endpoint para economia, itens aproveitados ou contagem de inventário | **SEM FONTE NA API**; quantidade de desperdício bruto tem somente a limitação de unidade descrita acima. |
 | Relatórios | Desperdício por semana (4 semanas) | `GET /api/desperdicios/`: `data`, `quantidade` | **Parcialmente calculável** agrupando por semana no frontend; não há agregação backend e a soma em kg depende de unidades compatíveis. |
 | Relatórios | Economia por categoria | Nenhum custo ou economia; categoria existe em alimento | **SEM FONTE NA API** para economia; categoria isolada não basta para calculá-la. |

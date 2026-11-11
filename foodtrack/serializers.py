@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError as ErroDeValidacao
 from rest_framework import serializers
 
 from .escopo import filtrar_por_restaurante
@@ -216,7 +217,9 @@ class DesperdicioSerializer(serializers.ModelSerializer):
         return estoque
 
     def create(self, validated_data):
-        # O autor é quem está autenticado. Na edição o usuario original permanece,
-        # porque o campo é somente leitura e o update não mexe nele.
+        # O autor é quem está autenticado. A baixa do lote acontece no save do modelo.
         validated_data['usuario'] = usuario_da_requisicao(self)
-        return super().create(validated_data)
+        try:
+            return super().create(validated_data)
+        except ErroDeValidacao as exc:
+            raise serializers.ValidationError(exc.message_dict) from exc

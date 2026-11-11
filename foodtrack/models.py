@@ -1,8 +1,9 @@
 import re
+from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator
-from django.db import models
+from django.db import connection, models, transaction
 from django.contrib.auth.models import AbstractUser
 
 CNPJ_MASCARA = re.compile(r'^\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}$')
@@ -268,3 +269,25 @@ class Desperdicio(models.Model):
 
     def __str__(self):
         return f'{self.get_motivo_display()} - {self.quantidade}'
+
+    def save(self, *args, **kwargs):
+        """Na criação, só grava a perda se o lote cobrir a quantidade e então desconta o estoque."""
+        if not self._state.adding:
+            super().save(*args, **kwargs)
+            return
+
+        with transaction.atomic():
+            consulta = Estoque.objects.filter(pk=self.estoque_id)
+            if connection.features.has_select_for_update:
+                consulta = consulta.select_for_update()
+            estoque = consulta.get()
+            quantidade = self.quantidade
+            if quantidade is None or Decimal(quantidade) <= 0:
+                raise ValidationError({'quantidade': 'Informe uma quantidade maior que zero.'})
+            if Decimal(quantidade) > estoque.quantidade_atual:
+                raise ValidationError({
+                    'quantidade': 'A quantidade do desperdício não pode ser maior que a quantidade em estoque.',
+                })
+            super().save(*args, **kwargs)
+            estoque.quantidade_atual -= Decimal(quantidade)
+            estoque.save(update_fields=['quantidade_atual'])
