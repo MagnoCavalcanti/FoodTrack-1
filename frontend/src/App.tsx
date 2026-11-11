@@ -1,27 +1,23 @@
 import { useEffect, useState, type FormEvent } from "react";
 import foodTrackLogo from "./assets/foodtrack-logo.png";
-import {
-  ApiError,
-  createUser,
-  createFood,
-  createStock,
-  createWaste,
-  formatQuantity,
-  getResources,
-  login,
-  localDateOffset,
-  localDateString,
-  MOTIVOS_DESPERDICIO,
-  ROTULOS_PERFIL,
-  rotuloDe,
-  updateStock,
-  type FoodItem,
-  type Restaurant,
-  type StockItem,
-  type User,
-  type WasteRecord,
-  updateRestaurant,
-} from "./api";
+import { listExpiryAlerts } from "./api/alertas";
+import { listFoods, createFood } from "./api/alimentos";
+import { login, logout as encerrarSessao } from "./api/autenticacao";
+import { ApiError } from "./api/cliente";
+import { listWaste, listWasteReasons, createWaste } from "./api/desperdicios";
+import { listStocks, listExpiringStocks, listUsageOrder, createStock, updateStock } from "./api/estoques";
+import { formatQuantity, intervaloDoMes, localDateString, rotuloDe } from "./api/formatacao";
+import { getWasteReport } from "./api/relatorios";
+import { listRestaurants, updateRestaurant, updateRestaurantSettings } from "./api/restaurantes";
+import type { AlertaValidade } from "./api/tipos/alerta";
+import type { FoodItem } from "./api/tipos/alimento";
+import type { MotivoDesperdicio, WasteRecord } from "./api/tipos/desperdicio";
+import type { EstoqueOrdenado, EstoqueProximo, StockItem } from "./api/tipos/estoque";
+import type { RelatorioDesperdicio } from "./api/tipos/relatorio";
+import type { Restaurant } from "./api/tipos/restaurante";
+import { ROTULOS_PERFIL } from "./api/tipos/usuario";
+import { getCurrentUser, listUsers, createUser } from "./api/usuarios";
+import type { User } from "./api/tipos/usuario";
 import {
   CreateFoodPage,
   DashboardPage,
@@ -35,6 +31,46 @@ import {
 } from "./pages/index";
 import { Icon, type IconName } from "./pages/ui";
 import type { ExpiringFood } from "./pages/types";
+
+type RecursosCarregados = {
+  user: User;
+  users: User[];
+  restaurants: Restaurant[];
+  foods: FoodItem[];
+  stocks: StockItem[];
+  waste: WasteRecord[];
+  expiringStocks: EstoqueProximo[];
+  usageOrder: EstoqueOrdenado[];
+  alerts: AlertaValidade[];
+  motivos: MotivoDesperdicio[];
+  relatorioMes: RelatorioDesperdicio;
+};
+
+/** Junta as consultas que as telas compartilham. Cada chamada permanece no setor da rota. */
+async function carregarRecursos(token: string): Promise<RecursosCarregados> {
+  const [user, users, restaurants, foods, stocks, waste, expiringStocks, usageOrder, alerts, motivos, relatorioMes] = await Promise.all([
+    getCurrentUser(token),
+    listUsers(token),
+    listRestaurants(token),
+    listFoods(token),
+    listStocks(token),
+    listWaste(token),
+    listExpiringStocks(token),
+    listUsageOrder(token),
+    listExpiryAlerts(token),
+    listWasteReasons(token),
+    getWasteReport(token, { ...intervaloDoMes(), agrupar: "motivo" }),
+  ]);
+  return { user, users, restaurants, foods, stocks, waste, expiringStocks, usageOrder, alerts, motivos, relatorioMes };
+}
+
+/** Descreve o prazo de alerta usado nas mensagens, a partir da configuração do restaurante. */
+function textoDoPrazo(user: User, restaurants: Restaurant[]) {
+  const proprio = restaurants.find((item) => item.id === user.restaurante);
+  if (proprio) return `até ${proprio.dias_alerta_validade} dia(s)`;
+  if (restaurants.length === 1) return `até ${restaurants[0].dias_alerta_validade} dia(s)`;
+  return "no prazo de alerta de cada restaurante";
+}
 
 const navigation: { label: string; icon: IconName }[] = [
   { label: "Dashboard", icon: "dashboard" },
@@ -71,16 +107,30 @@ export default function App() {
   const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [wasteRecords, setWasteRecords] = useState<WasteRecord[]>([]);
+  const [expiringStocks, setExpiringStocks] = useState<EstoqueProximo[]>([]);
+  const [usageOrder, setUsageOrder] = useState<EstoqueOrdenado[]>([]);
+  const [alerts, setAlerts] = useState<AlertaValidade[]>([]);
+  const [motivos, setMotivos] = useState<MotivoDesperdicio[]>([]);
+  const [relatorioMes, setRelatorioMes] = useState<RelatorioDesperdicio | null>(null);
 
-  // Recarrega os recursos após gravações e atualiza o usuário em contexto.
-  const refreshResources = async (sessionToken = token, currentUsername = username) => {
-    const resources = await getResources(sessionToken);
+  // Distribui a resposta de cada rota no estado compartilhado pelas telas.
+  const aplicarRecursos = (resources: RecursosCarregados) => {
+    setUser(resources.user);
     setRestaurants(resources.restaurants);
     setUsers(resources.users);
     setFoodItems(resources.foods);
     setStockItems(resources.stocks);
     setWasteRecords(resources.waste);
-    setUser(resources.users.find((item) => item.username === currentUsername) || resources.users[0] || null);
+    setExpiringStocks(resources.expiringStocks);
+    setUsageOrder(resources.usageOrder);
+    setAlerts(resources.alerts);
+    setMotivos(resources.motivos);
+    setRelatorioMes(resources.relatorioMes);
+  };
+
+  // Recarrega os recursos após gravações. A conta atual vem de /api/usuarios/me/.
+  const refreshResources = async (sessionToken = token) => {
+    aplicarRecursos(await carregarRecursos(sessionToken));
   };
 
   // Carrega os dados quando há sessão; evita atualizar estado após desmontar o efeito.
@@ -89,16 +139,10 @@ export default function App() {
     let active = true;
     setLoading(true);
     setLoadError("");
-    getResources(token)
+    carregarRecursos(token)
       .then((resources) => {
         if (!active) return;
-        setRestaurants(resources.restaurants);
-        setUsers(resources.users);
-        setFoodItems(resources.foods);
-        setStockItems(resources.stocks);
-        setWasteRecords(resources.waste);
-        const currentUser = resources.users.find((item) => item.username === username) || resources.users[0] || null;
-        setUser(currentUser);
+        aplicarRecursos(resources);
       })
       .catch((error: unknown) => {
         if (!active) return;
@@ -115,7 +159,7 @@ export default function App() {
         if (active) setLoading(false);
       });
     return () => { active = false; };
-  }, [token, username]);
+  }, [token]);
 
   // Exibe uma confirmação temporária na interface.
   const notify = (message: string) => {
@@ -139,8 +183,13 @@ export default function App() {
     }
   };
 
-  // Encerra a sessão local e limpa os dados mantidos em memória.
-  const logout = () => {
+  // Revoga o token no servidor e só então apaga a sessão guardada no navegador.
+  const logout = async () => {
+    try {
+      await encerrarSessao(token);
+    } catch {
+      // A sessão local é encerrada mesmo se o token já não existir no servidor.
+    }
     window.localStorage.removeItem("foodtrack-token");
     window.localStorage.removeItem("foodtrack-username");
     setToken("");
@@ -148,6 +197,11 @@ export default function App() {
     setStockItems([]);
     setFoodItems([]);
     setWasteRecords([]);
+    setExpiringStocks([]);
+    setUsageOrder([]);
+    setAlerts([]);
+    setMotivos([]);
+    setRelatorioMes(null);
     setRestaurants([]);
     setUsers([]);
     setActive("Dashboard");
@@ -227,6 +281,17 @@ export default function App() {
     }
   };
 
+  // Grava só os dias de alerta na configuração do restaurante da conta.
+  const saveRestaurantSettings = async (diasAlerta: number, restaurante?: number) => {
+    const atualizado = await updateRestaurantSettings(token, { dias_alerta_validade: diasAlerta }, restaurante);
+    try {
+      await refreshResources();
+    } catch (error) {
+      throw new Error(`O prazo de alerta foi salvo, mas a tela não pôde recarregar os dados. Erro: ${error instanceof Error ? error.message : "falha da API"}`);
+    }
+    return atualizado;
+  };
+
   // Sem token, somente o formulário de login é renderizado.
   if (!token) {
     return (
@@ -243,42 +308,51 @@ export default function App() {
   }
 
   // Aguarda o carregamento ou apresenta falhas antes de mostrar o sistema.
-  if (loading || !user) {
+  if (loading || !user || !relatorioMes) {
     return <LoadingPage loading={loading} loadError={loadError} onLogout={logout} />;
   }
 
-  // Prepara dados derivados localmente para alertas, contadores e notificações.
+  // Monta a visão do painel com a classificação que o servidor já calculou.
   const foodById = new Map(foodItems.map((food) => [food.id, food]));
-  const today = localDateString();
-  const threeDaysFromToday = localDateOffset(3);
-  const foodsExpiringToday: ExpiringFood[] = stockItems
-    .filter((stock) => stock.validade && stock.validade <= threeDaysFromToday)
+  const prazoAlerta = textoDoPrazo(user, restaurants);
+  const foodsExpiringToday: ExpiringFood[] = expiringStocks
     .map((stock) => {
-      const food = foodById.get(stock.alimento);
-      if (!food) return null;
-      const days = Math.ceil((new Date(`${stock.validade}T00:00:00`).getTime() - new Date(new Date().toDateString()).getTime()) / 86400000);
-      const categoryClass = food.categoria.toLowerCase().includes("carne") ? "cat-red" : food.categoria.toLowerCase().includes("pesc") ? "cat-blue" : food.categoria.toLowerCase().includes("hort") ? "cat-green" : "cat-indigo";
+      const categoryClass = stock.categoria.toLowerCase().includes("carne") ? "cat-red" : stock.categoria.toLowerCase().includes("pesc") ? "cat-blue" : stock.categoria.toLowerCase().includes("hort") ? "cat-green" : "cat-indigo";
       return {
         id: stock.id,
-        name: food.nome,
-        category: food.categoria.toUpperCase(),
+        name: stock.alimento_nome,
+        category: stock.categoria.toUpperCase(),
         categoryClass,
-        expiry: days < 0 ? "Vencido" : days === 0 ? "Vence hoje" : `Vence em ${days} dia(s)`,
-        critical: days <= 1,
+        expiry: stock.situacao === "vencido" ? "Vencido" : stock.situacao === "hoje" ? "Vence hoje" : `Vence em ${stock.dias_restantes} dia(s)`,
+        critical: stock.situacao === "vencido" || stock.situacao === "hoje",
         location: stock.localizacao,
-        amount: `${formatQuantity(stock.quantidade_atual)} ${food.medida}`,
+        amount: `${formatQuantity(stock.quantidade_atual)} ${stock.medida}`,
       };
     })
-    .filter((item): item is NonNullable<typeof item> => Boolean(item))
-    .filter((item) => `${item.name} ${item.location}`.toLowerCase().includes(search.toLowerCase()))
-    .sort((left, right) => left.expiry.localeCompare(right.expiry));
-  const expiringSoonCount = stockItems.filter((stock) => stock.validade && stock.validade >= today && stock.validade <= threeDaysFromToday).length;
-  const expiredCount = stockItems.filter((stock) => stock.validade && stock.validade < today).length;
-  const wasteThisMonth = wasteRecords.filter((record) => record.data.startsWith(today.slice(0, 7))).length;
-  const notifications = foodsExpiringToday.slice(0, 5);
+    .filter((item) => `${item.name} ${item.location}`.toLowerCase().includes(search.toLowerCase()));
+  const expiringSoonCount = expiringStocks.filter((stock) => stock.situacao !== "vencido").length;
+  const expiredCount = expiringStocks.filter((stock) => stock.situacao === "vencido").length;
+  const wasteThisMonth = relatorioMes.total_registros;
+  const notifications = alerts.slice(0, 5).map((alerta) => {
+    const stock = stockItems.find((item) => item.id === alerta.estoque);
+    const food = stock ? foodById.get(stock.alimento) : undefined;
+    return {
+      id: alerta.estoque,
+      name: alerta.alimento,
+      expiry: alerta.mensagem,
+      critical: alerta.situacao === "vencido" || alerta.situacao === "hoje",
+      location: alerta.localizacao,
+      amount: `${formatQuantity(alerta.quantidade_atual)} ${food?.medida || ""}`.trim(),
+    };
+  });
   // Abre o formulário de desperdício, opcionalmente pré-selecionando um estoque.
   const openWaste = (stockId?: number) => {
-    setWasteForm({ estoque: stockId ? String(stockId) : "", quantidade: "", motivo: "outro", descricao: "" });
+    setWasteForm({
+      estoque: stockId ? String(stockId) : "",
+      quantidade: "",
+      motivo: "outro",
+      descricao: "",
+    });
     setWasteError("");
     setWasteModal(true);
   };
@@ -295,11 +369,18 @@ export default function App() {
     foods: foodItems,
     stocks: stockItems,
     waste: wasteRecords,
+    expiringStocks,
+    usageOrder,
+    alerts,
+    motivos,
+    relatorioMes,
+    prazoAlerta,
     saveFood: submitFood,
     saveStock,
     saveWaste: submitWaste,
     saveUser,
     saveRestaurant,
+    saveRestaurantSettings,
   };
 
   // Estrutura compartilhada: menu lateral, cabeçalho, conteúdo e ações globais.
@@ -369,13 +450,13 @@ export default function App() {
           <div className="relative">
             <button onClick={() => setNotificationsOpen((current) => !current)} className={`relative grid size-11 shrink-0 place-items-center rounded-full text-[var(--muted-strong)] transition ${notificationsOpen ? "bg-[var(--brand-soft)] text-[var(--brand-dark)]" : ""}`} aria-label="Notificações de validade" aria-expanded={notificationsOpen}>
               <Icon name="bell" size={20} />
-              {expiringSoonCount > 0 && <span className="absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full bg-[var(--danger)] text-[0.65rem] font-bold text-white">{expiringSoonCount}</span>}
+              {alerts.length > 0 && <span className="absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full bg-[var(--danger)] text-[0.65rem] font-bold text-white">{alerts.length}</span>}
             </button>
             {notificationsOpen && (
               <div className="absolute right-0 top-14 z-50 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.16)]">
                 <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-4">
                   <div><h2 className="font-bold">Notificações</h2><p className="mt-0.5 text-xs text-[var(--muted)]">Alertas de validade do estoque</p></div>
-                  <span className="text-xs text-[var(--muted)]">{expiringSoonCount} itens em até 3 dias</span>
+                  <span className="text-xs text-[var(--muted)]">{alerts.length} alertas {prazoAlerta}</span>
                 </div>
                 <div className="max-h-[26rem] overflow-y-auto">
                   {notifications.map((food) => (
@@ -402,6 +483,7 @@ export default function App() {
           {active === "Dashboard" && (
             <DashboardPage
               foodsExpiringToday={foodsExpiringToday}
+              prazoAlerta={prazoAlerta}
               expiringSoonCount={expiringSoonCount}
               expiredCount={expiredCount}
               wasteThisMonth={wasteThisMonth}
@@ -437,13 +519,13 @@ export default function App() {
             }
           }} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl sm:p-8">
             <div className="flex items-start justify-between gap-4">
-              <div><h2 id="waste-title" className="text-2xl font-bold tracking-tight">Registrar desperdício</h2><p className="mt-1 text-sm text-[var(--muted-strong)]">O registro não reduz automaticamente a quantidade em estoque.</p></div>
+              <div><h2 id="waste-title" className="text-2xl font-bold tracking-tight">Registrar desperdício</h2><p className="mt-1 text-sm text-[var(--muted-strong)]">A quantidade registrada será descontada do lote escolhido.</p></div>
               <button type="button" onClick={() => setWasteModal(false)} className="grid size-11 place-items-center rounded-xl bg-[var(--surface-soft)]" aria-label="Fechar modal"><Icon name="close" /></button>
             </div>
             <div className="mt-7 grid gap-5 sm:grid-cols-2">
               <label className="sm:col-span-2"><span className="field-label">Estoque *</span><select required value={wasteForm.estoque} onChange={(event) => setWasteForm((current) => ({ ...current, estoque: event.target.value }))} className="field"><option value="">Selecione um alimento e local</option>{stockItems.map((stock) => { const food = foodById.get(stock.alimento); return <option key={stock.id} value={stock.id}>{food?.nome || `Alimento ${stock.alimento}`} · {stock.localizacao} ({formatQuantity(stock.quantidade_atual)} {food?.medida || ""})</option>; })}</select></label>
               <label><span className="field-label">Quantidade *</span><input required value={wasteForm.quantidade} onChange={(event) => setWasteForm((current) => ({ ...current, quantidade: event.target.value }))} type="number" min="0.001" step="0.001" className="field" placeholder="0,0" /></label>
-              <label><span className="field-label">Motivo *</span><select required value={wasteForm.motivo} onChange={(event) => setWasteForm((current) => ({ ...current, motivo: event.target.value }))} className="field">{MOTIVOS_DESPERDICIO.map((motivo) => <option key={motivo.value} value={motivo.value}>{motivo.label}</option>)}</select></label>
+              <label><span className="field-label">Motivo *</span><select required value={wasteForm.motivo} onChange={(event) => setWasteForm((current) => ({ ...current, motivo: event.target.value }))} className="field">{motivos.map((motivo) => <option key={motivo.valor} value={motivo.valor}>{motivo.rotulo}</option>)}</select></label>
               <label className="sm:col-span-2"><span className="field-label">Descrição</span><input maxLength={300} value={wasteForm.descricao} onChange={(event) => setWasteForm((current) => ({ ...current, descricao: event.target.value }))} className="field" placeholder="Detalhe opcional da baixa" /></label>
             </div>
             {wasteError && <p role="alert" className="mt-4 rounded-lg bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)]">{wasteError}</p>}

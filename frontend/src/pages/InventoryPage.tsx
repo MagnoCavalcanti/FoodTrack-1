@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { formatQuantity, localDateOffset, localDateString } from "../api";
+import { formatQuantity, localDateOffset, localDateString } from "../api/formatacao";
 import type { PageProps } from "./types";
 import { EmptyState, Field, Modal, PageHeader, PrimaryButton, SecondaryButton, StatusBadge, Summary, MiniIcon, downloadFile } from "./ui";
 
@@ -16,7 +16,7 @@ type InventoryRow = {
 };
 
 // Junta alimento e estoque para exibir, filtrar e editar os registros de inventário.
-export default function InventoryPage({ navigate, notify, foods, stocks, saveStock, openWaste }: PageProps) {
+export default function InventoryPage({ navigate, notify, foods, stocks, restaurants, expiringStocks, saveStock, openWaste }: PageProps) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("Todas");
   const [status, setStatus] = useState("Todos");
@@ -25,11 +25,20 @@ export default function InventoryPage({ navigate, notify, foods, stocks, saveSto
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const today = localDateString();
-  // Os filtros e os status são calculados no cliente a partir dos dados carregados.
+  const alertaPorEstoque = useMemo(() => new Map(expiringStocks.map((stock) => [stock.id, stock.situacao])), [expiringStocks]);
+  // O status preferencial vem da classificação do servidor; a data local cobre lotes fora dessa lista.
   const rows = useMemo(() => stocks.flatMap((stock) => {
     const food = foods.find((item) => item.id === stock.alimento);
     if (!food) return [];
-    const stockStatus = !stock.validade ? "Sem validade" : stock.validade < today ? "Vencido" : stock.validade <= localDateOffset(3) ? "Atenção" : "Em dia";
+    const situacao = alertaPorEstoque.get(stock.id);
+    const diasAlerta = restaurants.find((restaurant) => restaurant.id === food.restaurante)?.dias_alerta_validade;
+    const stockStatus = situacao === "vencido" || (!situacao && stock.validade && stock.validade < today)
+      ? "Vencido"
+      : situacao === "hoje" || situacao === "proximo" || (!situacao && stock.validade && diasAlerta !== undefined && stock.validade <= localDateOffset(diasAlerta))
+        ? "Atenção"
+        : stock.validade
+          ? "Em dia"
+          : "Sem validade";
     return [{
       id: stock.id,
       name: food.nome,
@@ -45,7 +54,7 @@ export default function InventoryPage({ navigate, notify, foods, stocks, saveSto
     item.name.toLowerCase().includes(query.toLowerCase()) &&
     (category === "Todas" || item.category === category) &&
     (status === "Todos" || item.status === status)
-  ), [stocks, foods, today, query, category, status]);
+  ), [stocks, foods, restaurants, alertaPorEstoque, today, query, category, status]);
 
   const exportInventory = () => {
     const csv = ["Produto,Categoria,Estoque,Local,Validade,Status", ...rows.map((item) => [item.name, item.category, item.stock, item.location, item.validity, item.status].map((value) => `"${value.replace(/"/g, '""')}"`).join(","))].join("\n");

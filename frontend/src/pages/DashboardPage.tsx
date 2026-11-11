@@ -4,6 +4,7 @@ import type { ExpiringFood } from "./types";
 
 type DashboardPageProps = {
   foodsExpiringToday: ExpiringFood[];
+  prazoAlerta: string;
   expiringSoonCount: number;
   expiredCount: number;
   wasteThisMonth: number;
@@ -18,6 +19,7 @@ type DashboardPageProps = {
 // Apresenta indicadores e alertas preparados pelo componente App.
 export default function DashboardPage({
   foodsExpiringToday,
+  prazoAlerta,
   expiringSoonCount,
   expiredCount,
   wasteThisMonth,
@@ -39,15 +41,15 @@ export default function DashboardPage({
 
       {expiringSoonCount > 0 && <section className="mt-7 flex flex-col gap-4 rounded-2xl border border-[var(--warning-border)] bg-[var(--warning-soft)] p-4 text-sm lg:flex-row lg:items-center">
         <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-[var(--warning-border)] bg-white/50 text-[var(--warning)]"><Icon name="alert" size={20} /></span>
-        <p className="flex-1 leading-relaxed text-[var(--warning-ink)]"><strong>Atenção: {expiringSoonCount} estoques vencem nos próximos 3 dias.</strong> Consulte a validade e priorize esses itens.</p>
+        <p className="flex-1 leading-relaxed text-[var(--warning-ink)]"><strong>Atenção: {expiringSoonCount} estoques vencem {prazoAlerta}.</strong> Consulte a validade e priorize esses itens.</p>
         <button onClick={() => navigate("Prioridades")} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--warning-button)] px-5 font-bold text-[var(--warning-ink)]">Ver itens prioritários <Icon name="chevron" size={16} /></button>
       </section>}
 
       <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Alimentos cadastrados" value={String(foodCount)} suffix="itens" icon="box" footer={`${stockCount} registros no estoque`} />
-        <StatCard label="Vencem em até 3 dias" value={String(expiringSoonCount)} suffix="registros de estoque" badge={expiringSoonCount ? "Atenção" : undefined} warning={expiringSoonCount > 0} footer="Calculado pelas datas de validade" />
-        <StatCard label="Validades vencidas" value={String(expiredCount)} suffix="registros de estoque" badge={expiredCount ? "Verificar" : undefined} danger={expiredCount > 0} footer="A API não oferece baixa automática" />
-        <StatCard label="Desperdícios no mês" value={String(wasteThisMonth)} suffix="registros" icon="trash" footer="Custo não disponível na API" />
+        <StatCard label="Dentro do prazo de alerta" value={String(expiringSoonCount)} suffix="registros de estoque" badge={expiringSoonCount ? "Atenção" : undefined} warning={expiringSoonCount > 0} footer={`Classificados pelo servidor ${prazoAlerta}`} />
+        <StatCard label="Validades vencidas" value={String(expiredCount)} suffix="registros de estoque" badge={expiredCount ? "Verificar" : undefined} danger={expiredCount > 0} footer="Lotes com quantidade ainda disponível" />
+        <StatCard label="Desperdícios no mês" value={String(wasteThisMonth)} suffix="registros" icon="trash" footer="Total do relatório mensal" />
       </section>
 
       <section className="mt-7 grid items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(310px,0.96fr)]">
@@ -55,13 +57,13 @@ export default function DashboardPage({
           <div className="flex flex-col gap-5 border-b border-[var(--line)] p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-lg font-bold leading-tight">Estoques com validade próxima</h2>
-              <p className="mt-1 text-sm text-[var(--muted-strong)]">{foodsExpiringToday.length} registros vencidos ou com vencimento em até 3 dias.</p>
+              <p className="mt-1 text-sm text-[var(--muted-strong)]">{foodsExpiringToday.length} lotes vencidos ou dentro do prazo de alerta.</p>
             </div>
             <span className="w-fit rounded-full bg-[var(--danger-soft)] px-3 py-1.5 text-xs font-bold text-[var(--danger)]">Ação imediata</span>
           </div>
           <div>
             {foodsExpiringToday.map((food) => (
-              <article key={food.name} className="grid gap-4 border-b border-[var(--line)] p-5 last:border-b-0 sm:grid-cols-[60px_minmax(0,1fr)] lg:grid-cols-[60px_minmax(0,1fr)_165px] lg:items-center">
+              <article key={food.id} className="grid gap-4 border-b border-[var(--line)] p-5 last:border-b-0 sm:grid-cols-[60px_minmax(0,1fr)] lg:grid-cols-[60px_minmax(0,1fr)_165px] lg:items-center">
                 <div className={`grid h-[60px] place-items-center rounded-xl border text-xs font-bold ${food.categoryClass}`}>{food.category}</div>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -75,10 +77,10 @@ export default function DashboardPage({
                 </div>
               </article>
             ))}
-            {foodsExpiringToday.length === 0 && <div className="p-12 text-center"><p className="font-semibold">Nenhum alimento encontrado</p><p className="mt-1 text-sm text-[var(--muted)]">Tente alterar o texto pesquisado.</p></div>}
+            {foodsExpiringToday.length === 0 && <div className="p-12 text-center"><p className="font-semibold">Nenhum lote dentro do prazo de alerta</p><p className="mt-1 text-sm text-[var(--muted)]">A busca também pode estar ocultando os itens retornados.</p></div>}
           </div>
           <div className="flex flex-col gap-3 bg-[var(--surface-soft)] px-5 py-4 text-sm text-[var(--muted-strong)] sm:flex-row sm:items-center sm:justify-between">
-            <span>Lista de estoques vencidos ou com vencimento em até 3 dias.</span>
+            <span>Lista vinda dos próximos vencimentos, já ordenada pela validade.</span>
             <button onClick={() => navigate("Prioridades")} className="flex min-h-10 items-center gap-1 font-bold text-[var(--brand-dark)]">Ver próximas validades <Icon name="chevron" size={16} /></button>
           </div>
         </div>
@@ -93,7 +95,7 @@ export default function DashboardPage({
           <Panel>
             <div className="flex items-center justify-between"><h2 className="panel-title">Desperdícios</h2><span className="text-xs text-[var(--muted)]">Este mês</span></div>
             <p className="mt-5 text-3xl font-bold">{wasteThisMonth}</p>
-            <p className="mt-1 text-sm text-[var(--muted-strong)]">registros; custo e baixa automática não são oferecidos pela API.</p>
+            <p className="mt-1 text-sm text-[var(--muted-strong)]">registros; a baixa desconta o lote e o custo não é oferecido pela API.</p>
           </Panel>
         </aside>
       </section>

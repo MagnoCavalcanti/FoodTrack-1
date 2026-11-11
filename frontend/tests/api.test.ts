@@ -1,15 +1,12 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import {
-  ApiError,
-  createFood,
-  formatQuantity,
-  localDateString,
-  login,
-  mascararCnpj,
-  MOTIVOS_DESPERDICIO,
-  rotuloDe,
-} from "../src/api.ts";
+import { createFood } from "../src/api/alimentos.ts";
+import { login } from "../src/api/autenticacao.ts";
+import { ApiError } from "../src/api/cliente.ts";
+import { listWaste } from "../src/api/desperdicios.ts";
+import { listExpiringStocks } from "../src/api/estoques.ts";
+import { formatQuantity, intervaloDoMes, localDateString, mascararCnpj, rotuloDe } from "../src/api/formatacao.ts";
+import { MOTIVOS_DESPERDICIO } from "../src/api/tipos/desperdicio.ts";
 
 const originalFetch = globalThis.fetch;
 
@@ -30,6 +27,35 @@ test("formatQuantity formata números e preserva valores inválidos", () => {
 
 test("localDateString usa o formato local AAAA-MM-DD", () => {
   assert.equal(localDateString(new Date(2026, 0, 5)), "2026-01-05");
+});
+
+test("intervaloDoMes cobre o mês civil inteiro", () => {
+  assert.deepEqual(intervaloDoMes(new Date(2026, 1, 10)), {
+    data_inicio: "2026-02-01",
+    data_fim: "2026-02-28",
+  });
+});
+
+test("listWaste envia o período pedido para a listagem", async () => {
+  globalThis.fetch = async (input) => {
+    assert.equal(input, "/api/desperdicios/?data_inicio=2026-02-01&data_fim=2026-02-28");
+    return Response.json([]);
+  };
+
+  assert.deepEqual(await listWaste("token-teste", {
+    data_inicio: "2026-02-01",
+    data_fim: "2026-02-28",
+  }), []);
+});
+
+test("listExpiringStocks consulta os próximos vencimentos sem alterar o prazo", async () => {
+  globalThis.fetch = async (input, init) => {
+    assert.equal(input, "/api/estoques/proximos-vencimento/");
+    assert.equal(new Headers(init?.headers).get("Authorization"), "Token token-teste");
+    return Response.json([]);
+  };
+
+  assert.deepEqual(await listExpiringStocks("token-teste"), []);
 });
 
 test("rotuloDe retorna o rótulo conhecido ou o valor original", () => {

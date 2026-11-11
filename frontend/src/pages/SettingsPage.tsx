@@ -1,28 +1,56 @@
-import { useState, type FormEvent } from "react";
-import { mascararCnpj, PERFIS, ROTULOS_PERFIL, rotuloDe } from "../api";
+import { useEffect, useState, type FormEvent } from "react";
+import { mascararCnpj, rotuloDe } from "../api/formatacao";
+import { getRestaurantSettings } from "../api/restaurantes";
+import { PERFIS, ROTULOS_PERFIL } from "../api/tipos/usuario";
 import type { PageProps } from "./types";
 import { Field, Modal, PageHeader, PrimaryButton, SecondaryButton, SettingsHeading } from "./ui";
 
-export default function SettingsPage({ notify, user, users, restaurants, saveUser, saveRestaurant }: PageProps) {
+export default function SettingsPage({ notify, user, users, restaurants, token, saveUser, saveRestaurant, saveRestaurantSettings }: PageProps) {
   const [tab, setTab] = useState("Restaurante");
   const [memberModal, setMemberModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [restaurantId, setRestaurantId] = useState(user.restaurante || restaurants[0]?.id || 0);
   const restaurant = restaurants.find((item) => item.id === restaurantId);
+  const podeAlterarAlerta = user.is_superuser || user.perfil === "proprietario" || user.perfil === "gerente";
   const [restaurantForm, setRestaurantForm] = useState({ nome: restaurant?.nome || "", cnpj: restaurant?.cnpj || "", dias_alerta_validade: restaurant?.dias_alerta_validade ?? 3 });
   const [memberForm, setMemberForm] = useState({ nome: "", username: "", email: "", perfil: "funcionario", password: "", restaurante: String(user.restaurante || "") });
   const tabs = [["Restaurante", "Dados disponíveis na API"], ["Equipe", "Contas do restaurante"]];
 
-  // A edição dos dados do restaurante é reservada ao superusuário também no backend.
+  // Os dias exibidos vêm da configuração do restaurante, não só da lista geral.
+  useEffect(() => {
+    if (!restaurantId) return;
+    let ativo = true;
+    getRestaurantSettings(token, user.is_superuser ? restaurantId : undefined)
+      .then((config) => {
+        if (!ativo) return;
+        setRestaurantForm((current) => ({
+          ...current,
+          nome: config.nome,
+          dias_alerta_validade: config.dias_alerta_validade,
+        }));
+      })
+      .catch((caught: unknown) => {
+        if (ativo) setError(caught instanceof Error ? caught.message : "Não foi possível ler a configuração do restaurante.");
+      });
+    return () => { ativo = false; };
+  }, [restaurantId, token, user.is_superuser]);
+
+  // Superusuário grava o restaurante inteiro. Proprietário e gerente gravam só o prazo de alerta.
   const submitRestaurant = async (event: FormEvent) => {
     event.preventDefault();
-    if (!restaurant || !user.is_superuser) return;
+    if (!restaurant || !podeAlterarAlerta) return;
     setSaving(true);
     setError("");
     try {
-      await saveRestaurant(restaurant.id, restaurantForm);
-      notify("Dados do restaurante atualizados.");
+      if (user.is_superuser) {
+        await saveRestaurant(restaurant.id, restaurantForm);
+        notify("Dados do restaurante atualizados.");
+      } else {
+        const atualizado = await saveRestaurantSettings(restaurantForm.dias_alerta_validade);
+        setRestaurantForm((current) => ({ ...current, dias_alerta_validade: atualizado.dias_alerta_validade }));
+        notify("Prazo de alerta atualizado.");
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível atualizar o restaurante.");
     } finally {
@@ -66,15 +94,17 @@ export default function SettingsPage({ notify, user, users, restaurants, saveUse
 
         <section className="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-[var(--shadow)] sm:p-7">
           {tab === "Restaurante" && <>
-            <SettingsHeading title="Restaurante" description="Campos de nome e CNPJ lidos do registro associado à sua conta." />
+            <SettingsHeading title="Restaurante" description="Nome e CNPJ vêm do restaurante. O prazo de alerta vem da configuração." />
             {user.is_superuser && <Field label="Selecionar restaurante" required><select required value={restaurantId} onChange={(event) => { const id = Number(event.target.value); setRestaurantId(id); const selectedRestaurant = restaurants.find((item) => item.id === id); if (selectedRestaurant) setRestaurantForm({ nome: selectedRestaurant.nome, cnpj: selectedRestaurant.cnpj, dias_alerta_validade: selectedRestaurant.dias_alerta_validade }); }} className="field mt-5">{restaurants.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}</select></Field>}
             {restaurant ? <form onSubmit={submitRestaurant} className="mt-6 grid gap-5 sm:grid-cols-2">
               <Field label="Nome" required><input required maxLength={150} readOnly={!user.is_superuser} value={restaurantForm.nome} onChange={(event) => setRestaurantForm((current) => ({ ...current, nome: event.target.value }))} className="field read-only:opacity-70" /></Field>
               <Field label="CNPJ" required><input required inputMode="numeric" maxLength={18} placeholder="00.000.000/0000-00" readOnly={!user.is_superuser} value={restaurantForm.cnpj} onChange={(event) => setRestaurantForm((current) => ({ ...current, cnpj: mascararCnpj(event.target.value) }))} className="field read-only:opacity-70" /></Field>
-              <Field label="Dias de alerta de validade" required><input required type="number" min={0} max={365} readOnly={!user.is_superuser} value={restaurantForm.dias_alerta_validade} onChange={(event) => setRestaurantForm((current) => ({ ...current, dias_alerta_validade: Number(event.target.value) }))} className="field read-only:opacity-70" /></Field>
-              {user.is_superuser && <div className="sm:col-span-2"><PrimaryButton type="submit">{saving ? "Salvando…" : "Salvar restaurante"}</PrimaryButton></div>}
+              <Field label="Dias de alerta de validade" required><input required type="number" min={0} max={365} readOnly={!podeAlterarAlerta} value={restaurantForm.dias_alerta_validade} onChange={(event) => setRestaurantForm((current) => ({ ...current, dias_alerta_validade: Number(event.target.value) }))} className="field read-only:opacity-70" /></Field>
+              {podeAlterarAlerta && <div className="sm:col-span-2"><PrimaryButton type="submit">{saving ? "Salvando…" : user.is_superuser ? "Salvar restaurante" : "Salvar prazo de alerta"}</PrimaryButton></div>}
             </form> : <p className="mt-6 text-sm text-[var(--muted-strong)]">Esta conta de superusuário não está vinculada a um restaurante específico.</p>}
-            {!user.is_superuser && <p className="mt-4 text-sm text-[var(--muted-strong)]">Somente superusuários podem alterar os dados do restaurante.</p>}
+            {user.is_superuser && <p className="mt-4 text-sm text-[var(--muted-strong)]">Nome, CNPJ e prazo de alerta são gravados no restaurante selecionado.</p>}
+            {!user.is_superuser && podeAlterarAlerta && <p className="mt-4 text-sm text-[var(--muted-strong)]">Você pode alterar o prazo de alerta do seu restaurante. Nome e CNPJ ficam com o superusuário.</p>}
+            {!podeAlterarAlerta && <p className="mt-4 text-sm text-[var(--muted-strong)]">Somente proprietário, gerente ou superusuário pode alterar o prazo de alerta.</p>}
             <p className="mt-6 rounded-xl bg-[var(--warning-soft)] p-4 text-sm text-[var(--warning-ink)]">Telefone, endereço e moeda não existem no modelo.</p>
           </>}
           {tab === "Equipe" && <>
