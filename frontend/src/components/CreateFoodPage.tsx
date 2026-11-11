@@ -1,6 +1,12 @@
 import { useState, type FormEvent } from "react";
 import type { PageProps } from "./types";
-import { Field, FormSection, MiniIcon, PageHeader, PrimaryButton, Review, SecondaryButton } from "./ui";
+import { Field } from "./Field";
+import { FormSection } from "./FormSection";
+import { MiniIcon } from "./MiniIcon";
+import { PageHeader } from "./PageHeader";
+import { PrimaryButton } from "./PrimaryButton";
+import { Review } from "./Review";
+import { SecondaryButton } from "./SecondaryButton";
 
 export default function CreateFoodPage({ navigate, notify, saveFood, user, restaurants }: PageProps) {
   const [submitted, setSubmitted] = useState(false);

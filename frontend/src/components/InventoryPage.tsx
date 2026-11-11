@@ -1,7 +1,16 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { formatQuantity, localDateOffset, localDateString } from "../api/formatacao";
 import type { PageProps } from "./types";
-import { EmptyState, Field, Modal, PageHeader, PrimaryButton, SecondaryButton, StatusBadge, Summary, MiniIcon, downloadFile } from "./ui";
+import { downloadFile } from "./downloadFile";
+import { EmptyState } from "./EmptyState";
+import { Field } from "./Field";
+import { MiniIcon } from "./MiniIcon";
+import { Modal } from "./Modal";
+import { PageHeader } from "./PageHeader";
+import { PrimaryButton } from "./PrimaryButton";
+import { SecondaryButton } from "./SecondaryButton";
+import { StatusBadge } from "./StatusBadge";
+import { Summary } from "./Summary";
 
 type InventoryRow = {
   id: number;

@@ -1,12 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
-import foodTrackLogo from "./assets/foodtrack-logo.png";
 import { listExpiryAlerts } from "./api/alertas";
 import { listFoods, createFood } from "./api/alimentos";
 import { login, logout as encerrarSessao } from "./api/autenticacao";
 import { ApiError } from "./api/cliente";
 import { listWaste, listWasteReasons, createWaste } from "./api/desperdicios";
 import { listStocks, listExpiringStocks, listUsageOrder, createStock, updateStock } from "./api/estoques";
-import { formatQuantity, intervaloDoMes, localDateString, rotuloDe } from "./api/formatacao";
+import { formatQuantity, intervaloDoMes, localDateString } from "./api/formatacao";
 import { getWasteReport } from "./api/relatorios";
 import { listRestaurants, updateRestaurant, updateRestaurantSettings } from "./api/restaurantes";
 import type { AlertaValidade } from "./api/tipos/alerta";
@@ -15,22 +14,22 @@ import type { MotivoDesperdicio, WasteRecord } from "./api/tipos/desperdicio";
 import type { EstoqueOrdenado, EstoqueProximo, StockItem } from "./api/tipos/estoque";
 import type { RelatorioDesperdicio } from "./api/tipos/relatorio";
 import type { Restaurant } from "./api/tipos/restaurante";
-import { ROTULOS_PERFIL } from "./api/tipos/usuario";
 import { getCurrentUser, listUsers, createUser } from "./api/usuarios";
 import type { User } from "./api/tipos/usuario";
-import {
-  CreateFoodPage,
-  DashboardPage,
-  InventoryPage,
-  LoadingPage,
-  LoginPage,
-  PriorityPage,
-  ReportsPage,
-  SettingsPage,
-  WastePage,
-} from "./pages/index";
-import { Icon, type IconName } from "./pages/ui";
-import type { ExpiringFood } from "./pages/types";
+import { AppHeader } from "./components/AppHeader";
+import CreateFoodPage from "./components/CreateFoodPage";
+import DashboardPage from "./components/DashboardPage";
+import InventoryPage from "./components/InventoryPage";
+import LoadingPage from "./components/LoadingPage";
+import LoginPage from "./components/LoginPage";
+import PriorityPage from "./components/PriorityPage";
+import ReportsPage from "./components/ReportsPage";
+import SettingsPage from "./components/SettingsPage";
+import { Sidebar } from "./components/Sidebar";
+import { Toast } from "./components/Toast";
+import { WasteForm, quantidadeInicialDaBaixa } from "./components/WasteForm";
+import WastePage from "./components/WastePage";
+import type { ExpiringFood } from "./components/types";
 
 type RecursosCarregados = {
   user: User;
@@ -64,23 +63,6 @@ async function carregarRecursos(token: string): Promise<RecursosCarregados> {
   return { user, users, restaurants, foods, stocks, waste, expiringStocks, usageOrder, alerts, motivos, relatorioMes };
 }
 
-const QUANTIDADE_MINIMA_BAIXA = 0.01;
-
-/** Formata a quantidade da baixa com até 3 casas, sem zeros à direita. */
-function formatarQuantidadeBaixa(valor: number) {
-  return valor.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
-}
-
-/** Mantém a quantidade digitada entre 0,01 e o saldo do lote, preservando um número incompleto. */
-function limitarQuantidadeBaixa(valor: string, maximo: number) {
-  const normalizado = valor.replace(",", ".");
-  if (normalizado === "" || normalizado === "0" || normalizado === "0.") return normalizado;
-  const numero = Number(normalizado);
-  if (!Number.isFinite(numero)) return "";
-  if (numero > maximo) return formatarQuantidadeBaixa(maximo);
-  return normalizado;
-}
-
 /** Descreve o prazo de alerta usado nas mensagens, a partir da configuração do restaurante. */
 function textoDoPrazo(user: User, restaurants: Restaurant[]) {
   const proprio = restaurants.find((item) => item.id === user.restaurante);
@@ -88,15 +70,6 @@ function textoDoPrazo(user: User, restaurants: Restaurant[]) {
   if (restaurants.length === 1) return `até ${restaurants[0].dias_alerta_validade} dia(s)`;
   return "no prazo de alerta de cada restaurante";
 }
-
-const navigation: { label: string; icon: IconName }[] = [
-  { label: "Dashboard", icon: "dashboard" },
-  { label: "Estoque", icon: "box" },
-  { label: "Cadastrar Alimento", icon: "plus" },
-  { label: "Desperdícios", icon: "trash" },
-  { label: "Relatórios", icon: "chart" },
-  { label: "Configurações", icon: "settings" },
-];
 
 // Componente raiz: concentra sessão, dados compartilhados e navegação entre telas.
 export default function App() {
@@ -367,7 +340,7 @@ export default function App() {
     const saldo = stockId ? Number(stockItems.find((stock) => stock.id === stockId)?.quantidade_atual) : Number.NaN;
     setWasteForm({
       estoque: stockId ? String(stockId) : "",
-      quantidade: Number.isFinite(saldo) && saldo >= QUANTIDADE_MINIMA_BAIXA ? formatarQuantidadeBaixa(QUANTIDADE_MINIMA_BAIXA) : "",
+      quantidade: quantidadeInicialDaBaixa(saldo),
       motivo: "outro",
       descricao: "",
     });
@@ -404,99 +377,34 @@ export default function App() {
   // Estrutura compartilhada: menu lateral, cabeçalho, conteúdo e ações globais.
   return (
     <div className="min-h-screen bg-[var(--canvas)] text-[var(--ink)]">
-      {mobileMenu && <button className="fixed inset-0 z-40 bg-slate-950/35 lg:hidden" aria-label="Fechar menu" onClick={() => setMobileMenu(false)} />}
-
-      <aside className={`fixed inset-y-0 left-0 z-50 flex w-[268px] flex-col border-r border-[var(--line)] bg-white transition-[width,transform] duration-200 lg:translate-x-0 ${sidebarCollapsed ? "lg:w-[84px]" : "lg:w-[268px]"} ${mobileMenu ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className={`flex items-center justify-between px-4 ${sidebarCollapsed ? "h-[82px] lg:justify-center" : "h-[104px]"}`}>
-          <div className={sidebarCollapsed ? "lg:hidden" : ""}>
-            <img src={foodTrackLogo} alt="FoodTrack — Controle hoje, menos desperdício amanhã" className="h-[92px] w-[176px] object-contain" />
-          </div>
-          {sidebarCollapsed && (
-            <button
-              onClick={() => setSidebarCollapsed(false)}
-              className="hidden size-11 place-items-center rounded-xl bg-[var(--brand)] text-white shadow-[0_5px_16px_rgba(7,150,105,0.22)] transition hover:bg-[var(--brand-dark)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] lg:grid"
-              aria-label="Abrir menu lateral"
-              aria-expanded="false"
-              title="Abrir menu"
-            >
-              <Icon name="menu" size={21} />
-            </button>
-          )}
-          <button onClick={() => setMobileMenu(false)} className="grid size-11 place-items-center text-[var(--muted)] lg:hidden" aria-label="Fechar navegação"><Icon name="close" /></button>
-        </div>
-        <div className={`group absolute -right-4 top-8 z-10 ${sidebarCollapsed ? "hidden" : "hidden lg:block"}`}>
-          <button
-            onClick={() => setSidebarCollapsed(true)}
-            className="grid size-8 place-items-center rounded-full border border-[var(--line)] bg-white text-[var(--brand-dark)] shadow-[0_4px_14px_rgba(15,23,42,0.12)] transition hover:scale-105 hover:border-[var(--brand-border)] hover:bg-[var(--brand-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]"
-            aria-label="Recolher menu lateral"
-            aria-expanded="true"
-          >
-            <Icon name="chevron" size={16} className="rotate-180 transition-transform duration-200" />
-          </button>
-          <span className="pointer-events-none absolute left-10 top-1/2 w-max -translate-y-1/2 translate-x-1 rounded-lg bg-[var(--ink)] px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition group-hover:translate-x-0 group-hover:opacity-100">
-            Recolher menu
-          </span>
-        </div>
-
-        <nav className="mt-4 flex-1 px-4" aria-label="Navegação principal">
-          <div className="space-y-1.5">
-            {navigation.map((item) => (
-              <button key={item.label} title={sidebarCollapsed ? item.label : undefined} onClick={() => { setActive(item.label); setMobileMenu(false); }} className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-4 text-left text-[0.95rem] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] ${sidebarCollapsed ? "lg:justify-center lg:gap-0 lg:px-0" : ""} ${active === item.label ? "bg-[var(--brand-soft)] text-[var(--brand-dark)]" : "text-[var(--muted-strong)] hover:bg-[var(--surface-soft)]"}`}>
-                <Icon name={item.icon} size={18} className={active === item.label ? "text-[var(--brand)]" : "text-[var(--icon)]"} />
-                <span className={sidebarCollapsed ? "lg:hidden" : ""}>{item.label}</span>
-              </button>
-            ))}
-          </div>
-        </nav>
-
-        <div className={`mx-4 mb-4 rounded-2xl border border-[var(--brand-border)] bg-[var(--brand-soft)]/60 p-4 ${sidebarCollapsed ? "lg:hidden" : ""}`}>
-          <div className="flex items-center justify-between text-xs font-semibold text-[var(--brand-dark)]"><span>Economia no Mês</span><Icon name="trend" size={16} /></div>
-          <p className="mt-3 text-2xl font-bold tracking-tight">{wasteThisMonth}</p>
-          <p className="mt-1 text-xs text-[var(--brand)]">Registros de desperdício no mês</p>
-        </div>
-        <button onClick={() => notify("Central de suporte aberta")} title="Suporte & Documentação" className={`mx-5 mb-5 flex min-h-11 items-center gap-3 text-sm text-[var(--muted-strong)] ${sidebarCollapsed ? "lg:justify-center lg:gap-0" : ""}`}><Icon name="help" size={18} /> <span className={sidebarCollapsed ? "lg:hidden" : ""}>Suporte & Documentação</span></button>
-      </aside>
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        mobileOpen={mobileMenu}
+        active={active}
+        wasteThisMonth={wasteThisMonth}
+        onNavigate={(label) => { setActive(label); setMobileMenu(false); }}
+        onCloseMobile={() => setMobileMenu(false)}
+        onCollapse={() => setSidebarCollapsed(true)}
+        onExpand={() => setSidebarCollapsed(false)}
+        onSupport={() => notify("Central de suporte aberta")}
+      />
 
       <div className={`transition-[padding] duration-200 ${sidebarCollapsed ? "lg:pl-[84px]" : "lg:pl-[268px]"}`}>
-        <header className="sticky top-0 z-30 flex min-h-[74px] items-center gap-3 border-b border-[var(--line)] bg-white/95 px-4 backdrop-blur-md sm:px-6 xl:px-10">
-          <button onClick={() => setMobileMenu(true)} className="grid size-11 shrink-0 place-items-center rounded-xl border border-[var(--line)] lg:hidden" aria-label="Abrir navegação"><Icon name="menu" /></button>
-          <div className="relative min-w-0 flex-1 md:max-w-2xl">
-            <Icon name="search" size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--icon)]" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 w-full rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] pl-11 pr-4 text-sm outline-none transition focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-soft)]" placeholder="Buscar insumo ou local..." aria-label="Buscar insumo ou local de armazenamento" />
-          </div>
-          <div className="ml-auto flex shrink-0 items-center gap-3">
-          <div className="relative">
-            <button onClick={() => setNotificationsOpen((current) => !current)} className={`relative grid size-11 shrink-0 place-items-center rounded-full text-[var(--muted-strong)] transition ${notificationsOpen ? "bg-[var(--brand-soft)] text-[var(--brand-dark)]" : ""}`} aria-label="Notificações de validade" aria-expanded={notificationsOpen}>
-              <Icon name="bell" size={20} />
-              {alerts.length > 0 && <span className="absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full bg-[var(--danger)] text-[0.65rem] font-bold text-white">{alerts.length}</span>}
-            </button>
-            {notificationsOpen && (
-              <div className="absolute right-0 top-14 z-50 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.16)]">
-                <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-4">
-                  <div><h2 className="font-bold">Notificações</h2><p className="mt-0.5 text-xs text-[var(--muted)]">Alertas de validade do estoque</p></div>
-                  <span className="text-xs text-[var(--muted)]">{alerts.length} alertas {prazoAlerta}</span>
-                </div>
-                <div className="max-h-[26rem] overflow-y-auto">
-                  {notifications.map((food) => (
-                    <button key={food.id} onClick={() => { setActive("Estoque"); setNotificationsOpen(false); }} className="flex min-h-[88px] w-full gap-3 border-b border-[var(--line)] px-5 py-4 text-left last:border-0 hover:bg-[var(--surface-soft)]">
-                      <span className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl ${food.critical ? "bg-[var(--danger-soft)] text-[var(--danger)]" : "bg-[var(--warning-soft)] text-[var(--warning)]"}`}><Icon name={food.critical ? "alert" : "calendar"} size={17} /></span>
-                      <span className="min-w-0 flex-1"><strong className="block truncate text-sm">{food.name}</strong><span className={`mt-0.5 block text-xs font-bold ${food.critical ? "text-[var(--danger)]" : "text-[var(--warning)]"}`}>{food.expiry}</span><span className="mt-1 block text-xs text-[var(--muted)]">{food.amount} · {food.location}</span></span>
-                    </button>
-                  ))}
-                  {notifications.length === 0 && <p className="p-5 text-sm text-[var(--muted-strong)]">Nenhum item com validade próxima.</p>}
-                </div>
-                <button onClick={() => { setActive("Prioridades"); setNotificationsOpen(false); }} className="min-h-11 w-full border-t border-[var(--line)] bg-[var(--surface-soft)] text-sm font-bold text-[var(--brand-dark)]">Ver todos os itens prioritários</button>
-              </div>
-            )}
-          </div>
-          <button onClick={logout} className="flex min-h-11 items-center gap-3 text-left" aria-label="Sair da conta">
-            <span className="grid size-10 place-items-center rounded-full border border-[var(--line)] bg-slate-100 text-xs font-bold">{user.nome.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</span>
-            <span className="hidden sm:block"><strong className="block text-sm font-semibold">{user.nome}</strong><span className="block text-xs leading-tight text-[var(--muted)]">{rotuloDe(ROTULOS_PERFIL, user.perfil)} · Sair</span></span>
-          </button>
-          </div>
-        </header>
-
-        {/* A tela é escolhida pelo estado active; não há roteamento por URL aqui. */}
+        <AppHeader
+          search={search}
+          onSearch={setSearch}
+          onOpenMenu={() => setMobileMenu(true)}
+          notificationsOpen={notificationsOpen}
+          onToggleNotifications={() => setNotificationsOpen((current) => !current)}
+          alertCount={alerts.length}
+          prazoAlerta={prazoAlerta}
+          notifications={notifications}
+          onOpenStock={() => { setActive("Estoque"); setNotificationsOpen(false); }}
+          onOpenPriorities={() => { setActive("Prioridades"); setNotificationsOpen(false); }}
+          userName={user.nome}
+          userProfile={user.perfil}
+          onLogout={logout}
+        />
         <main className="mx-auto max-w-[1440px] px-4 py-7 sm:px-6 xl:px-10 xl:py-9">
           {active === "Dashboard" && (
             <DashboardPage
@@ -522,74 +430,21 @@ export default function App() {
         </main>
       </div>
 
-      {/* Modal compartilhado para registrar desperdícios a partir de diferentes telas. */}
       {wasteModal && (
-        <div className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/45 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="waste-title">
-          <form onSubmit={async (event) => {
-            event.preventDefault();
-            setWasteError("");
-            const saldo = Number(stockItems.find((stock) => stock.id === Number(wasteForm.estoque))?.quantidade_atual);
-            const quantidade = Number(wasteForm.quantidade.replace(",", "."));
-            if (!Number.isFinite(saldo) || saldo < QUANTIDADE_MINIMA_BAIXA || !Number.isFinite(quantidade) || quantidade < QUANTIDADE_MINIMA_BAIXA || quantidade > saldo) {
-              setWasteError("Informe uma quantidade entre 0,01 e o saldo disponível no lote.");
-              return;
-            }
-            try {
-              await submitWaste({ motivo: wasteForm.motivo, descricao: wasteForm.descricao, quantidade: formatarQuantidadeBaixa(quantidade), data: localDateString(), estoque: Number(wasteForm.estoque) });
-              setWasteModal(false);
-              notify("Desperdício registrado.");
-            } catch (error) {
-              setWasteError(error instanceof Error ? error.message : "Não foi possível registrar o desperdício.");
-            }
-          }} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl sm:p-8">
-            <div className="flex items-start justify-between gap-4">
-              <div><h2 id="waste-title" className="text-2xl font-bold tracking-tight">Registrar desperdício</h2><p className="mt-1 text-sm text-[var(--muted-strong)]">A quantidade registrada será descontada do lote escolhido.</p></div>
-              <button type="button" onClick={() => setWasteModal(false)} className="grid size-11 place-items-center rounded-xl bg-[var(--surface-soft)]" aria-label="Fechar modal"><Icon name="close" /></button>
-            </div>
-            <div className="mt-7 grid gap-5 sm:grid-cols-2">
-              <label className="sm:col-span-2"><span className="field-label">Estoque *</span><select required value={wasteForm.estoque} onChange={(event) => {
-                const estoque = event.target.value;
-                const saldo = Number(stockItems.find((stock) => stock.id === Number(estoque))?.quantidade_atual);
-                setWasteForm((current) => {
-                  const informada = Number(current.quantidade.replace(",", "."));
-                  const quantidade = !Number.isFinite(saldo) || saldo < QUANTIDADE_MINIMA_BAIXA
-                    ? ""
-                    : !Number.isFinite(informada) || informada < QUANTIDADE_MINIMA_BAIXA
-                      ? "0.01"
-                      : limitarQuantidadeBaixa(current.quantidade, saldo);
-                  return { ...current, estoque, quantidade };
-                });
-              }} className="field"><option value="">Selecione um alimento e local</option>{stockItems.map((stock) => { const food = foodById.get(stock.alimento); return <option key={stock.id} value={stock.id}>{food?.nome || `Alimento ${stock.alimento}`} · {stock.localizacao} ({formatQuantity(stock.quantidade_atual)} {food?.medida || ""})</option>; })}</select></label>
-              {(() => {
-                const lote = stockItems.find((stock) => stock.id === Number(wasteForm.estoque));
-                const saldo = Number(lote?.quantidade_atual);
-                const medida = lote ? foodById.get(lote.alimento)?.medida || "" : "";
-                const disponivel = Number.isFinite(saldo) && saldo >= QUANTIDADE_MINIMA_BAIXA;
-                const valorRange = disponivel ? Math.min(saldo, Math.max(QUANTIDADE_MINIMA_BAIXA, Number(wasteForm.quantidade.replace(",", ".")) || QUANTIDADE_MINIMA_BAIXA)) : QUANTIDADE_MINIMA_BAIXA;
-                return <div className="sm:col-span-2"><span className="field-label">Quantidade *</span>{disponivel ? <>
-                  <input type="range" min={QUANTIDADE_MINIMA_BAIXA} max={saldo} step={QUANTIDADE_MINIMA_BAIXA} value={valorRange} onChange={(event) => setWasteForm((current) => ({ ...current, quantidade: formatarQuantidadeBaixa(Number(event.target.value)) }))} className="h-11 w-full accent-[var(--brand)]" aria-label="Ajustar quantidade no intervalo disponível" />
-                  <span className="mt-1 flex justify-between text-xs text-[var(--muted)]"><span>0,01 {medida}</span><span>{formatQuantity(lote?.quantidade_atual || "")} {medida}</span></span>
-                  <input required type="number" min={QUANTIDADE_MINIMA_BAIXA} max={saldo} step={QUANTIDADE_MINIMA_BAIXA} value={wasteForm.quantidade} onChange={(event) => setWasteForm((current) => ({ ...current, quantidade: limitarQuantidadeBaixa(event.target.value, saldo) }))} onBlur={() => setWasteForm((current) => {
-                    const numero = Number(current.quantidade.replace(",", "."));
-                    const ajustada = !Number.isFinite(numero) || numero < QUANTIDADE_MINIMA_BAIXA ? QUANTIDADE_MINIMA_BAIXA : Math.min(saldo, numero);
-                    return { ...current, quantidade: formatarQuantidadeBaixa(ajustada) };
-                  })} className="field mt-3" aria-label="Quantidade da baixa" />
-                </> : <p className="rounded-xl bg-[var(--warning-soft)] p-3 text-sm text-[var(--warning-ink)]">{lote ? "Este lote não tem saldo suficiente para uma baixa mínima de 0,01." : "Selecione um lote para definir a quantidade entre 0,01 e o saldo disponível."}</p>}</div>;
-              })()}
-              <label><span className="field-label">Motivo *</span><select required value={wasteForm.motivo} onChange={(event) => setWasteForm((current) => ({ ...current, motivo: event.target.value }))} className="field">{motivos.map((motivo) => <option key={motivo.valor} value={motivo.valor}>{motivo.rotulo}</option>)}</select></label>
-              <label className="sm:col-span-2"><span className="field-label">Descrição</span><input maxLength={300} value={wasteForm.descricao} onChange={(event) => setWasteForm((current) => ({ ...current, descricao: event.target.value }))} className="field" placeholder="Detalhe opcional da baixa" /></label>
-            </div>
-            {wasteError && <p role="alert" className="mt-4 rounded-lg bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)]">{wasteError}</p>}
-            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <button type="button" onClick={() => setWasteModal(false)} className="min-h-11 rounded-xl border border-[var(--line)] px-5 text-sm font-bold">Cancelar</button>
-              <button type="submit" className="min-h-11 rounded-xl bg-[var(--danger)] px-5 text-sm font-bold text-white">Confirmar registro</button>
-            </div>
-          </form>
-        </div>
+        <WasteForm
+          foods={foodItems}
+          stocks={stockItems}
+          motivos={motivos}
+          form={wasteForm}
+          error={wasteError}
+          onChange={setWasteForm}
+          onError={setWasteError}
+          onClose={() => setWasteModal(false)}
+          onSubmit={submitWaste}
+          onSaved={() => { setWasteModal(false); notify("Desperdício registrado."); }}
+        />
       )}
-
-      {/* Região acessível para confirmações temporárias das operações. */}
-      {toast && <div aria-live="polite" className="fixed bottom-5 left-1/2 z-[80] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-xl bg-[var(--ink)] px-5 py-3.5 text-center text-sm font-semibold text-white shadow-xl">{toast}</div>}
+      <Toast message={toast} />
     </div>
   );
 }

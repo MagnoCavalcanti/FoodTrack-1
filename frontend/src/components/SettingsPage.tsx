@@ -3,7 +3,12 @@ import { mascararCnpj, rotuloDe } from "../api/formatacao";
 import { getRestaurantSettings } from "../api/restaurantes";
 import { PERFIS, ROTULOS_PERFIL } from "../api/tipos/usuario";
 import type { PageProps } from "./types";
-import { Field, Modal, PageHeader, PrimaryButton, SecondaryButton, SettingsHeading } from "./ui";
+import { Field } from "./Field";
+import { Modal } from "./Modal";
+import { PageHeader } from "./PageHeader";
+import { PrimaryButton } from "./PrimaryButton";
+import { SecondaryButton } from "./SecondaryButton";
+import { SettingsHeading } from "./SettingsHeading";
 
 export default function SettingsPage({ notify, user, users, restaurants, token, saveUser, saveRestaurant, saveRestaurantSettings }: PageProps) {
   const [tab, setTab] = useState("Restaurante");

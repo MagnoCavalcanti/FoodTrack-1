@@ -1,9 +1,0 @@
-export { default as LoginPage } from "./LoginPage";
-export { default as LoadingPage } from "./LoadingPage";
-export { default as DashboardPage } from "./DashboardPage";
-export { default as PriorityPage } from "./PriorityPage";
-export { default as InventoryPage } from "./InventoryPage";
-export { default as CreateFoodPage } from "./CreateFoodPage";
-export { default as WastePage } from "./WastePage";
-export { default as ReportsPage } from "./ReportsPage";
-export { default as SettingsPage } from "./SettingsPage";

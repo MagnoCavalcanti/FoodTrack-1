@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { formatQuantity } from "../api/formatacao";
 import type { PageProps } from "./types";
-import { PageHeader, SecondaryButton, Summary } from "./ui";
+import { PageHeader } from "./PageHeader";
+import { SecondaryButton } from "./SecondaryButton";
+import { Summary } from "./Summary";
 
 export default function PriorityPage({ navigate, openWaste, expiringStocks, usageOrder, prazoAlerta }: PageProps) {
   const [filter, setFilter] = useState("Todos");

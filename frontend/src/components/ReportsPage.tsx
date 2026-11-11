@@ -3,7 +3,11 @@ import { localDateOffset, localDateString } from "../api/formatacao";
 import { getWasteReport } from "../api/relatorios";
 import type { RelatorioDesperdicio } from "../api/tipos/relatorio";
 import type { PageProps } from "./types";
-import { PageHeader, Rank, SecondaryButton, Summary, downloadFile } from "./ui";
+import { downloadFile } from "./downloadFile";
+import { PageHeader } from "./PageHeader";
+import { Rank } from "./Rank";
+import { SecondaryButton } from "./SecondaryButton";
+import { Summary } from "./Summary";
 
 export default function ReportsPage({ foods, stocks, waste, token, expiringStocks, relatorioMes }: PageProps) {
   const [porDia, setPorDia] = useState<RelatorioDesperdicio | null>(null);

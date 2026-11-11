@@ -3,7 +3,11 @@ import { listWaste } from "../api/desperdicios";
 import type { FiltroDesperdicio, WasteRecord } from "../api/tipos/desperdicio";
 import { formatQuantity, localDateString } from "../api/formatacao";
 import type { PageProps } from "./types";
-import { PageHeader, PrimaryButton, SecondaryButton, Summary, downloadFile } from "./ui";
+import { downloadFile } from "./downloadFile";
+import { PageHeader } from "./PageHeader";
+import { PrimaryButton } from "./PrimaryButton";
+import { SecondaryButton } from "./SecondaryButton";
+import { Summary } from "./Summary";
 
 /** Converte o período da tela nos parâmetros data_inicio e data_fim da listagem. */
 function filtroDoPeriodo(period: string): FiltroDesperdicio {
