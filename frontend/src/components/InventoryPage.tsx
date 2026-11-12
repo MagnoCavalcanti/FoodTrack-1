@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { formatQuantity, localDateOffset, localDateString } from "../api/formatacao";
+import { formatQuantity, localDateOffset, localDateString, ajustarQuantidadeAMedida, medidaInteira } from "../api/formatacao";
 import type { PageProps } from "./types";
 import { downloadFile } from "./downloadFile";
 import { EmptyState } from "./EmptyState";
@@ -125,7 +125,7 @@ export default function InventoryPage({ navigate, notify, foods, stocks, restaur
         <div className="bg-[var(--surface-soft)] px-5 py-4 text-sm text-[var(--muted-strong)]">Exibindo {rows.length} registros de estoque.</div>
       </section>
       {detail && <Modal title={`Editar estoque: ${detail.name}`} close={() => setDetail(null)}><form onSubmit={updateDetails} className="grid gap-4 sm:grid-cols-2">
-        <Field label={`Quantidade (${foods.find((food) => food.nome === detail.name)?.medida || ""})`} required><input required min="0" step="0.001" type="number" value={editForm.quantidade_atual} onChange={(event) => setEditForm((current) => ({ ...current, quantidade_atual: event.target.value }))} className="field" /></Field>
+        <Field label={`Quantidade (${foods.find((food) => food.nome === detail.name)?.medida || ""})`} required><input required min="0" step={medidaInteira(foods.find((food) => food.nome === detail.name)?.medida) ? 1 : "any"} type="number" value={editForm.quantidade_atual} onChange={(event) => setEditForm((current) => ({ ...current, quantidade_atual: ajustarQuantidadeAMedida(event.target.value, foods.find((food) => food.nome === detail.name)?.medida) }))} className="field" /></Field>
         <Field label="Localização" required><input required maxLength={150} value={editForm.localizacao} onChange={(event) => setEditForm((current) => ({ ...current, localizacao: event.target.value }))} className="field" /></Field>
         <Field label="Validade"><input type="date" value={editForm.validade} onChange={(event) => setEditForm((current) => ({ ...current, validade: event.target.value }))} className="field" /></Field>
         <Field label="Data de entrada" required><input required type="date" value={editForm.entrada} onChange={(event) => setEditForm((current) => ({ ...current, entrada: event.target.value }))} className="field" /></Field>

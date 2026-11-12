@@ -14,6 +14,19 @@ export function createWaste(token: string, data: NovoDesperdicio) {
   });
 }
 
+/** Altera uma perda já lançada. O backend não ajusta o lote na edição. */
+export function updateWaste(token: string, id: number, data: Partial<NovoDesperdicio>) {
+  return request<WasteRecord>(`desperdicios/${id}/`, token, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+/** Exclui uma perda. O backend não devolve a quantidade ao lote na exclusão. */
+export function deleteWaste(token: string, id: number) {
+  return request<void>(`desperdicios/${id}/`, token, { method: "DELETE" });
+}
+
 /** Lista os motivos oficiais de desperdício para montar formulários e filtros. */
 export function listWasteReasons(token: string) {
   return request<MotivoDesperdicio[]>("desperdicios/motivos/", token);

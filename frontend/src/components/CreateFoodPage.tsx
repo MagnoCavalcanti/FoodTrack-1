@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { ajustarQuantidadeAMedida, medidaInteira } from "../api/formatacao";
 import type { PageProps } from "./types";
 import { Field } from "./Field";
 import { FormSection } from "./FormSection";
@@ -54,8 +55,8 @@ export default function CreateFoodPage({ navigate, notify, saveFood, user, resta
             {user.is_superuser && <Field label="Restaurante" required><select required value={form.restaurant} onChange={(e) => update("restaurant", e.target.value)} className="field"><option value="">Selecione</option>{restaurants.map((restaurant) => <option key={restaurant.id} value={restaurant.id}>{restaurant.nome}</option>)}</select></Field>}
           </FormSection>
           <FormSection title="Dados do estoque" description="Controle de quantidade, validade e armazenamento.">
-            <Field label="Quantidade inicial" required><input required value={form.quantity} onChange={(e) => update("quantity", e.target.value)} className="field" type="number" min="0" step="0.001" placeholder="0,0" /></Field>
-            <Field label="Unidade" required><select value={form.unit} onChange={(e) => update("unit", e.target.value)} className="field"><option>Kg</option><option>g</option><option>L</option><option>ml</option><option value="un">Unidade</option><option value="maço">Maço</option><option value="caixa">Caixa</option></select></Field>
+            <Field label="Quantidade inicial" required><input required value={form.quantity} onChange={(e) => update("quantity", ajustarQuantidadeAMedida(e.target.value, form.unit))} className="field" type="number" min="0" step={medidaInteira(form.unit) ? 1 : "any"} placeholder={medidaInteira(form.unit) ? "0" : "0,0"} /></Field>
+            <Field label="Unidade" required><select value={form.unit} onChange={(e) => { const unit = e.target.value; setForm((current) => ({ ...current, unit, quantity: ajustarQuantidadeAMedida(current.quantity, unit) })); }} className="field"><option>Kg</option><option>g</option><option>L</option><option>ml</option><option value="un">Unidade</option><option value="maço">Maço</option><option value="caixa">Caixa</option></select></Field>
             <Field label="Validade do estoque"><input value={form.validity} onChange={(e) => update("validity", e.target.value)} className="field" type="date" /></Field>
             <Field label="Local de armazenamento" required><input required maxLength={150} value={form.location} onChange={(e) => update("location", e.target.value)} className="field" placeholder="Ex.: Câmara fria" /></Field>
           </FormSection>

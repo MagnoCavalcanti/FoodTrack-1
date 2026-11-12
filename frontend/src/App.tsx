@@ -3,7 +3,7 @@ import { listExpiryAlerts } from "./api/alertas";
 import { listFoods, createFood } from "./api/alimentos";
 import { login, logout as encerrarSessao } from "./api/autenticacao";
 import { ApiError } from "./api/cliente";
-import { listWaste, listWasteReasons, createWaste } from "./api/desperdicios";
+import { listWaste, listWasteReasons, createWaste, updateWaste, deleteWaste } from "./api/desperdicios";
 import { listStocks, listExpiringStocks, listUsageOrder, createStock, updateStock } from "./api/estoques";
 import { formatQuantity, intervaloDoMes, localDateString } from "./api/formatacao";
 import { getWasteReport } from "./api/relatorios";
@@ -241,8 +241,68 @@ export default function App() {
     }
   };
 
+  // O backend só desconta o lote na criação da baixa. Na edição e na exclusão,
+  // o frontend devolve ao lote a quantidade antiga e desconta a nova.
+  // As contas usam milésimos inteiros para evitar erro de ponto flutuante.
+  const emMilesimos = (valor: string) => Math.round(Number(valor) * 1000);
+  const deMilesimos = (valor: number) => (valor / 1000).toFixed(3);
+  const saldosAtuais = async () => {
+    const lotes = await listStocks(token);
+    return new Map(lotes.map((lote) => [lote.id, emMilesimos(lote.quantidade_atual)]));
+  };
+  const avisoDeAjuste = (acao: string, error: unknown) => new Error(`O desperdício foi ${acao}, mas o saldo do lote não pôde ser ajustado. Confira a quantidade no Estoque. Erro: ${error instanceof Error ? error.message : "falha da API"}`);
+
+  // Edita uma baixa e reajusta o saldo do lote (ou dos dois lotes, se ele mudou).
+  const editWaste = async (original: WasteRecord, data: { motivo: string; descricao: string; quantidade: string; data: string; estoque: number }) => {
+    const saldos = await saldosAtuais();
+    const antiga = emMilesimos(original.quantidade);
+    const nova = emMilesimos(data.quantidade);
+    const mesmoLote = original.estoque === data.estoque;
+    const saldoDestino = saldos.get(data.estoque);
+    if (saldoDestino === undefined) throw new Error("O lote escolhido não foi encontrado.");
+    const disponivel = mesmoLote ? saldoDestino + antiga : saldoDestino;
+    if (nova > disponivel) throw new Error(`A quantidade não pode ser maior que o saldo disponível no lote (${formatQuantity(deMilesimos(disponivel))}).`);
+
+    await updateWaste(token, original.id, data);
+    try {
+      if (mesmoLote) {
+        if (nova !== antiga) await updateStock(token, data.estoque, { quantidade_atual: deMilesimos(saldoDestino + antiga - nova) });
+      } else {
+        const saldoOrigem = saldos.get(original.estoque);
+        if (saldoOrigem !== undefined) await updateStock(token, original.estoque, { quantidade_atual: deMilesimos(saldoOrigem + antiga) });
+        await updateStock(token, data.estoque, { quantidade_atual: deMilesimos(saldoDestino - nova) });
+      }
+    } catch (error) {
+      await refreshResources().catch(() => undefined);
+      throw avisoDeAjuste("atualizado", error);
+    }
+    try {
+      await refreshResources();
+    } catch (error) {
+      throw new Error(`O desperdício foi atualizado, mas a atualização da tela falhou. Recarregue os dados. Erro: ${error instanceof Error ? error.message : "falha da API"}`);
+    }
+  };
+
+  // Exclui uma baixa e devolve a quantidade ao lote.
+  const removeWaste = async (record: WasteRecord) => {
+    const saldos = await saldosAtuais();
+    await deleteWaste(token, record.id);
+    try {
+      const saldo = saldos.get(record.estoque);
+      if (saldo !== undefined) await updateStock(token, record.estoque, { quantidade_atual: deMilesimos(saldo + emMilesimos(record.quantidade)) });
+    } catch (error) {
+      await refreshResources().catch(() => undefined);
+      throw avisoDeAjuste("excluído", error);
+    }
+    try {
+      await refreshResources();
+    } catch (error) {
+      throw new Error(`O desperdício foi excluído, mas a atualização da tela falhou. Recarregue os dados. Erro: ${error instanceof Error ? error.message : "falha da API"}`);
+    }
+  };
+
   // Atualiza um estoque existente e recarrega os dados compartilhados.
-  const saveStock = async (id: number, data: Partial<Omit<StockItem, "id">>) => {
+  const saveStock =async (id: number, data: Partial<Omit<StockItem, "id">>) => {
     await updateStock(token, id, data);
     try {
       await refreshResources();
@@ -337,10 +397,12 @@ export default function App() {
   });
   // Abre o formulário de desperdício, opcionalmente pré-selecionando um estoque.
   const openWaste = (stockId?: number) => {
-    const saldo = stockId ? Number(stockItems.find((stock) => stock.id === stockId)?.quantidade_atual) : Number.NaN;
+    const lote = stockId ? stockItems.find((stock) => stock.id === stockId) : undefined;
+    const saldo = lote ? Number(lote.quantidade_atual) : Number.NaN;
+    const medida = lote ? foodItems.find((food) => food.id === lote.alimento)?.medida : undefined;
     setWasteForm({
       estoque: stockId ? String(stockId) : "",
-      quantidade: quantidadeInicialDaBaixa(saldo),
+      quantidade: quantidadeInicialDaBaixa(saldo, medida),
       motivo: "outro",
       descricao: "",
     });
@@ -369,6 +431,8 @@ export default function App() {
     saveFood: submitFood,
     saveStock,
     saveWaste: submitWaste,
+    updateWaste: editWaste,
+    removeWaste,
     saveUser,
     saveRestaurant,
     saveRestaurantSettings,

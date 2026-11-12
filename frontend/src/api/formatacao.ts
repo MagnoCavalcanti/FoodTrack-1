@@ -6,6 +6,24 @@ export function formatQuantity(quantity: string) {
   return Number.isFinite(value) ? quantityFormatter.format(value) : quantity;
 }
 
+/** Medidas contadas em itens inteiros: não faz sentido lançar 0,38 unidade ou caixa. */
+const MEDIDAS_INTEIRAS = ["un", "unidade", "unidades", "maço", "maços", "caixa", "caixas"];
+
+/** Indica se a medida só aceita quantidades inteiras. */
+export function medidaInteira(medida?: string) {
+  return Boolean(medida) && MEDIDAS_INTEIRAS.includes(medida!.trim().toLowerCase());
+}
+
+/** Menor quantidade e passo dos campos: 1 para itens contados, 0,01 para peso e volume. */
+export function passoDaMedida(medida?: string) {
+  return medidaInteira(medida) ? 1 : 0.01;
+}
+
+/** Em medidas inteiras, descarta a parte decimal digitada ("0.007" vira "0"); nas demais, mantém o texto. */
+export function ajustarQuantidadeAMedida(valor: string, medida?: string) {
+  return medidaInteira(medida) ? valor.replace(/[.,].*$/, "") : valor;
+}
+
 /** Converte uma data para o texto AAAA-MM-DD no fuso local. */
 export function localDateString(date = new Date()) {
   const year = date.getFullYear();

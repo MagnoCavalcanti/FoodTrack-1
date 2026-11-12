@@ -38,7 +38,9 @@ export type PageProps = {
   saveFood: (data: { nome: string; categoria: string; medida: string; quantidade: string; validade: string; localizacao: string; restaurante?: number }) => Promise<void>;
   saveStock: (id: number, data: Partial<Omit<StockItem, "id">>) => Promise<void>;
   saveWaste: (data: { motivo: string; descricao: string; quantidade: string; data: string; estoque: number }) => Promise<void>;
-  saveUser: (data: { username: string; nome: string; email: string; perfil: string; password: string; restaurante?: number }) => Promise<void>;
+  updateWaste: (original: WasteRecord, data: { motivo: string; descricao: string; quantidade: string; data: string; estoque: number }) => Promise<void>;
+  removeWaste: (record: WasteRecord) => Promise<void>;
+  saveUser:(data: { username: string; nome: string; email: string; perfil: string; password: string; restaurante?: number }) => Promise<void>;
   saveRestaurant: (id: number, data: { nome: string; cnpj: string; dias_alerta_validade: number }) => Promise<void>;
   saveRestaurantSettings: (diasAlerta: number, restaurante?: number) => Promise<ConfiguracaoRestaurante>;
 };
