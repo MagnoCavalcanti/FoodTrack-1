@@ -2,6 +2,7 @@ import { Icon } from "./Icon";
 import { Panel } from "./Panel";
 import { StatCard } from "./StatCard";
 import type { ExpiringFood } from "./types";
+import { Button } from "./Button";
 
 type DashboardPageProps = {
   foodsExpiringToday: ExpiringFood[];
@@ -43,7 +44,7 @@ export default function DashboardPage({
       {expiringSoonCount > 0 && <section className="mt-7 flex flex-col gap-4 rounded-2xl border border-[var(--warning-border)] bg-[var(--warning-soft)] p-4 text-sm lg:flex-row lg:items-center">
         <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-[var(--warning-border)] bg-white/50 text-[var(--warning)]"><Icon name="alert" size={20} /></span>
         <p className="flex-1 leading-relaxed text-[var(--warning-ink)]"><strong>Atenção: {expiringSoonCount} estoques vencem {prazoAlerta}.</strong> Consulte a validade e priorize esses itens.</p>
-        <button onClick={() => navigate("Prioridades")} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--warning-button)] px-5 font-bold text-[var(--warning-ink)]">Ver itens prioritários <Icon name="chevron" size={16} /></button>
+        <Button variant="warning" onClick={() => navigate("Prioridades")} trailing={<Icon name="chevron" size={16} />}>Ver itens prioritários</Button>
       </section>}
 
       <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -74,7 +75,7 @@ export default function DashboardPage({
                   <p className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-sm text-[var(--muted-strong)]"><span>{food.location}</span><span className="text-[var(--line-strong)]">•</span><span>{food.amount}</span></p>
                 </div>
                 <div className="flex flex-row items-center gap-3 sm:col-start-2 lg:col-start-auto lg:flex-col lg:items-stretch">
-                  <button onClick={() => onRegisterWaste(food.id)} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--danger)] px-3 text-sm font-bold text-white">Registrar baixa</button>
+                  <Button variant="dangerSoft" onClick={() => onRegisterWaste(food.id)} className="flex-1">Registrar baixa</Button>
                 </div>
               </article>
             ))}
@@ -82,7 +83,7 @@ export default function DashboardPage({
           </div>
           <div className="flex flex-col gap-3 bg-[var(--surface-soft)] px-5 py-4 text-sm text-[var(--muted-strong)] sm:flex-row sm:items-center sm:justify-between">
             <span>Lista vinda dos próximos vencimentos, já ordenada pela validade.</span>
-            <button onClick={() => navigate("Prioridades")} className="flex min-h-10 items-center gap-1 font-bold text-[var(--brand-dark)]">Ver próximas validades <Icon name="chevron" size={16} /></button>
+            <Button variant="ghost" size="sm" onClick={() => navigate("Prioridades")} trailing={<Icon name="chevron" size={16} />}>Ver próximas validades</Button>
           </div>
         </div>
 

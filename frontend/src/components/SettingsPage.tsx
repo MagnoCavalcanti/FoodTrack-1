@@ -6,9 +6,8 @@ import type { PageProps } from "./types";
 import { Field } from "./Field";
 import { Modal } from "./Modal";
 import { PageHeader } from "./PageHeader";
-import { PrimaryButton } from "./PrimaryButton";
-import { SecondaryButton } from "./SecondaryButton";
 import { SettingsHeading } from "./SettingsHeading";
+import { Button } from "./Button";
 
 export default function SettingsPage({ notify, user, users, restaurants, token, saveUser, saveRestaurant, saveRestaurantSettings }: PageProps) {
   const [tab, setTab] = useState("Restaurante");
@@ -105,7 +104,7 @@ export default function SettingsPage({ notify, user, users, restaurants, token, 
               <Field label="Nome" required><input required maxLength={150} readOnly={!user.is_superuser} value={restaurantForm.nome} onChange={(event) => setRestaurantForm((current) => ({ ...current, nome: event.target.value }))} className="field read-only:opacity-70" /></Field>
               <Field label="CNPJ" required><input required inputMode="numeric" maxLength={18} placeholder="00.000.000/0000-00" readOnly={!user.is_superuser} value={restaurantForm.cnpj} onChange={(event) => setRestaurantForm((current) => ({ ...current, cnpj: mascararCnpj(event.target.value) }))} className="field read-only:opacity-70" /></Field>
               <Field label="Dias de alerta de validade" required><input required type="number" min={0} max={365} readOnly={!podeAlterarAlerta} value={restaurantForm.dias_alerta_validade} onChange={(event) => setRestaurantForm((current) => ({ ...current, dias_alerta_validade: Number(event.target.value) }))} className="field read-only:opacity-70" /></Field>
-              {podeAlterarAlerta && <div className="sm:col-span-2"><PrimaryButton type="submit">{saving ? "Salvando…" : user.is_superuser ? "Salvar restaurante" : "Salvar prazo de alerta"}</PrimaryButton></div>}
+              {podeAlterarAlerta && <div className="sm:col-span-2"><Button type="submit" disabled={saving}>{saving ? "Salvando…" : user.is_superuser ? "Salvar restaurante" : "Salvar prazo de alerta"}</Button></div>}
             </form> : <p className="mt-6 text-sm text-[var(--muted-strong)]">Esta conta de superusuário não está vinculada a um restaurante específico.</p>}
             {user.is_superuser && <p className="mt-4 text-sm text-[var(--muted-strong)]">Nome, CNPJ e prazo de alerta são gravados no restaurante selecionado.</p>}
             {!user.is_superuser && podeAlterarAlerta && <p className="mt-4 text-sm text-[var(--muted-strong)]">Você pode alterar o prazo de alerta do seu restaurante. Nome e CNPJ ficam com o superusuário.</p>}
@@ -113,7 +112,7 @@ export default function SettingsPage({ notify, user, users, restaurants, token, 
             <p className="mt-6 rounded-xl bg-[var(--warning-soft)] p-4 text-sm text-[var(--warning-ink)]">Telefone, endereço e moeda não existem no modelo.</p>
           </>}
           {tab === "Equipe" && <>
-            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><SettingsHeading title="Usuários" description={`${users.length} contas retornadas pela API.`} /><PrimaryButton onClick={() => { setError(""); setMemberModal(true); }} icon="plus">Criar usuário</PrimaryButton></div>
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><SettingsHeading title="Usuários" description={`${users.length} contas retornadas pela API.`} /><Button onClick={() => { setError(""); setMemberModal(true); }} icon="plus">Criar usuário</Button></div>
             <div className="mt-6 space-y-3">{users.map((member) => <div key={member.id} className="flex flex-col gap-3 rounded-2xl border border-[var(--line)] p-4 sm:flex-row sm:items-center"><span className="grid size-11 shrink-0 place-items-center rounded-full bg-[var(--surface-soft)] text-xs font-bold">{member.nome.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</span><div className="min-w-0 flex-1"><strong className="block text-sm">{member.nome}</strong><span className="text-xs text-[var(--muted)]">{member.username} · {member.email}</span></div><span className="text-sm font-semibold text-[var(--brand-dark)]">{rotuloDe(ROTULOS_PERFIL, member.perfil)}</span></div>)}</div>
             <p className="mt-5 rounded-xl bg-[var(--warning-soft)] p-4 text-sm text-[var(--warning-ink)]">A API permite criar contas, mas não oferece convites por e-mail nem edição/exclusão de usuários pelo fluxo desta tela.</p>
           </>}
@@ -128,7 +127,7 @@ export default function SettingsPage({ notify, user, users, restaurants, token, 
         <Field label="Senha inicial" required><input required minLength={8} type="password" value={memberForm.password} onChange={(event) => setMemberForm((current) => ({ ...current, password: event.target.value }))} className="field" /></Field>
         {user.is_superuser && <Field label="Restaurante" required><select required value={memberForm.restaurante} onChange={(event) => setMemberForm((current) => ({ ...current, restaurante: event.target.value }))} className="field"><option value="">Selecione</option>{restaurants.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}</select></Field>}
         {error && <p role="alert" className="sm:col-span-2 text-sm text-[var(--danger)]">{error}</p>}
-        <div className="flex justify-end gap-3 sm:col-span-2"><SecondaryButton onClick={() => setMemberModal(false)}>Cancelar</SecondaryButton><PrimaryButton type="submit">{saving ? "Criando…" : "Criar usuário"}</PrimaryButton></div>
+        <div className="flex justify-end gap-3 sm:col-span-2"><Button variant="secondary" onClick={() => setMemberModal(false)}>Cancelar</Button><Button type="submit" disabled={saving}>{saving ? "Criando…" : "Criar usuário"}</Button></div>
       </form></Modal>}
     </>
   );

@@ -4,6 +4,7 @@ import type { FoodItem } from "../api/tipos/alimento";
 import type { MotivoDesperdicio } from "../api/tipos/desperdicio";
 import type { StockItem } from "../api/tipos/estoque";
 import { Icon } from "./Icon";
+import { Button } from "./Button";
 
 /** Formata a quantidade da baixa com até 3 casas, sem zeros à direita. */
 function formatarQuantidadeBaixa(valor: number) {
@@ -100,12 +101,14 @@ export function WasteForm({ foods, stocks, motivos, form, error, onChange, onErr
 
   return (
     <div className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/45 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="waste-title">
-      <form onSubmit={enviar} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl sm:p-8">
-        <div className="flex items-start justify-between gap-4">
+      <form onSubmit={enviar} className="flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col rounded-2xl bg-white shadow-2xl">
+        <div className="flex shrink-0 items-start justify-between gap-4 px-6 pb-4 pt-6 sm:px-8 sm:pt-7">
           <div><h2 id="waste-title" className="text-2xl font-bold tracking-tight">Registrar desperdício</h2><p className="mt-1 text-sm text-[var(--muted-strong)]">A quantidade registrada será descontada do lote escolhido.</p></div>
           <button type="button" onClick={onClose} className="grid size-11 place-items-center rounded-xl bg-[var(--surface-soft)]" aria-label="Fechar modal"><Icon name="close" /></button>
         </div>
-        <div className="mt-7 grid gap-5 sm:grid-cols-2">
+        {/* Só os campos rolam; título e botões ficam sempre visíveis em telas baixas. */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-2 sm:px-8">
+        <div className="grid gap-4 sm:grid-cols-2">
           <label className="sm:col-span-2"><span className="field-label">Estoque *</span><select required value={form.estoque} onChange={(event) => {
             const estoque = event.target.value;
             const novo = dadosDoLote(estoque);
@@ -134,9 +137,10 @@ export function WasteForm({ foods, stocks, motivos, form, error, onChange, onErr
           <label className="sm:col-span-2"><span className="field-label">Descrição</span><input maxLength={300} value={form.descricao} onChange={(event) => onChange({ ...form, descricao: event.target.value })} className="field" placeholder="Detalhe opcional da baixa" /></label>
         </div>
         {error && <p role="alert" className="mt-4 rounded-lg bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)]">{error}</p>}
-        <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button type="button" onClick={onClose} className="min-h-11 rounded-xl border border-[var(--line)] px-5 text-sm font-bold">Cancelar</button>
-          <button type="submit" className="min-h-11 rounded-xl bg-[var(--danger)] px-5 text-sm font-bold text-white">Confirmar registro</button>
+        </div>
+        <div className="flex shrink-0 flex-col-reverse gap-3 border-t border-[var(--line)] px-6 py-4 sm:flex-row sm:justify-end sm:px-8">
+          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="submit">Confirmar registro</Button>
         </div>
       </form>
     </div>

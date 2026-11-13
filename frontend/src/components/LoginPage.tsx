@@ -1,5 +1,6 @@
 import type { FormEvent } from "react";
 import foodTrackLogo from "../assets/foodtrack-logo.png";
+import { Button } from "./Button";
 
 type LoginPageProps = {
   username: string;
@@ -22,7 +23,7 @@ export default function LoginPage({ username, password, loginError, loadError, o
         <label className="mt-6 block"><span className="field-label">Usuário</span><input autoComplete="username" required value={username} onChange={(event) => onUsernameChange(event.target.value)} className="field" /></label>
         <label className="mt-4 block"><span className="field-label">Senha</span><input autoComplete="current-password" required type="password" value={password} onChange={(event) => onPasswordChange(event.target.value)} className="field" /></label>
         {(loginError || loadError) && <p role="alert" className="mt-4 rounded-lg bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)]">{loginError || loadError}</p>}
-        <button type="submit" className="mt-6 min-h-11 w-full rounded-xl bg-[var(--brand)] font-bold text-white">Entrar</button>
+        <Button type="submit" fullWidth className="mt-6">Entrar</Button>
       </form>
     </main>
   );

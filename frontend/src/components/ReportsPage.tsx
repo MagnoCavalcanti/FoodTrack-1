@@ -6,8 +6,8 @@ import type { PageProps } from "./types";
 import { downloadFile } from "./downloadFile";
 import { PageHeader } from "./PageHeader";
 import { Rank } from "./Rank";
-import { SecondaryButton } from "./SecondaryButton";
 import { Summary } from "./Summary";
+import { Button } from "./Button";
 
 export default function ReportsPage({ foods, stocks, waste, token, expiringStocks, relatorioMes }: PageProps) {
   const [porDia, setPorDia] = useState<RelatorioDesperdicio | null>(null);
@@ -46,7 +46,7 @@ export default function ReportsPage({ foods, stocks, waste, token, expiringStock
 
   return (
     <>
-      <PageHeader eyebrow="Resultados da operação" title="Relatórios" description="Os totais de desperdício vêm do relatório da API. Alimentos e estoques sem validade continuam nas listas desses recursos." actions={<SecondaryButton onClick={() => downloadFile("relatorio-foodtrack.csv", ["Tipo,ID,Data,Quantidade,Descricao", ...waste.map((record) => `Desperdício,${record.id},${record.data},${record.quantidade},"${record.descricao.replace(/"/g, '""')}"`)].join("\n"), "text/csv")} icon="download">Exportar desperdícios</SecondaryButton>} />
+      <PageHeader eyebrow="Resultados da operação" title="Relatórios" description="Os totais de desperdício vêm do relatório da API. Alimentos e estoques sem validade continuam nas listas desses recursos." actions={<Button variant="secondary" onClick={() => downloadFile("relatorio-foodtrack.csv", ["Tipo,ID,Data,Quantidade,Descricao", ...waste.map((record) => `Desperdício,${record.id},${record.data},${record.quantidade},"${record.descricao.replace(/"/g, '""')}"`)].join("\n"), "text/csv")} icon="download">Exportar desperdícios</Button>} />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Summary label="Alimentos cadastrados" value={String(foods.length)} detail="Registros no restaurante" icon="box" />
         <Summary label="Estoques próximos da validade" value={String(soon)} detail="Dentro do prazo de alerta" icon="calendar" tone="warning" />

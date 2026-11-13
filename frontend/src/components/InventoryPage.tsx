@@ -7,10 +7,9 @@ import { Field } from "./Field";
 import { MiniIcon } from "./MiniIcon";
 import { Modal } from "./Modal";
 import { PageHeader } from "./PageHeader";
-import { PrimaryButton } from "./PrimaryButton";
-import { SecondaryButton } from "./SecondaryButton";
 import { StatusBadge } from "./StatusBadge";
 import { Summary } from "./Summary";
+import { Button } from "./Button";
 
 type InventoryRow = {
   id: number;
@@ -99,7 +98,7 @@ export default function InventoryPage({ navigate, notify, foods, stocks, restaur
 
   return (
     <>
-      <PageHeader eyebrow="Gestão de inventário" title="Estoque de Alimentos" description="Dados carregados do estoque do restaurante na API." actions={<><SecondaryButton onClick={exportInventory} icon="download">Exportar estoque</SecondaryButton><PrimaryButton onClick={() => navigate("Cadastrar Alimento")} icon="plus">Cadastrar alimento</PrimaryButton></>} />
+      <PageHeader eyebrow="Gestão de inventário" title="Estoque de Alimentos" description="Dados carregados do estoque do restaurante na API." actions={<><Button variant="secondary" onClick={exportInventory} icon="download">Exportar estoque</Button><Button onClick={() => navigate("Cadastrar Alimento")} icon="plus">Cadastrar alimento</Button></>} />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Summary label="Registros de estoque" value={String(stocks.length)} detail="Itens retornados pela API" icon="box" />
         <Summary label="Alimentos cadastrados" value={String(foods.length)} detail="No restaurante atual" icon="filter" />
@@ -118,7 +117,7 @@ export default function InventoryPage({ navigate, notify, foods, stocks, restaur
         <div className="overflow-x-auto">
           <table className="w-full min-w-[800px] text-left text-sm">
             <thead><tr className="border-b border-[var(--line)] bg-[var(--surface-soft)] text-xs uppercase tracking-wide text-[var(--muted-strong)]"><th className="px-5 py-4">Alimento</th><th>Estoque</th><th>Localização</th><th>Validade</th><th>Status</th><th className="pr-5 text-right">Ação</th></tr></thead>
-            <tbody>{rows.map((item) => <tr key={item.id} className="border-b border-[var(--line)] last:border-0 hover:bg-[var(--surface-soft)]"><td className="py-4 pl-5"><strong className="block">{item.name}</strong><span className="text-xs text-[var(--muted)]">{item.category}</span></td><td>{item.stock}</td><td>{item.location}</td><td className="font-semibold">{item.validity}</td><td><StatusBadge status={item.status} /></td><td className="pr-5 text-right"><button onClick={() => openDetails(item)} className="min-h-10 rounded-lg px-3 font-bold text-[var(--brand-dark)] hover:bg-[var(--brand-soft)]">Editar</button><button onClick={() => openWaste(item.id)} className="min-h-10 rounded-lg px-3 font-semibold text-[var(--danger)]">Baixa</button></td></tr>)}</tbody>
+            <tbody>{rows.map((item) => <tr key={item.id} className="border-b border-[var(--line)] last:border-0 hover:bg-[var(--surface-soft)]"><td className="py-4 pl-5"><strong className="block">{item.name}</strong><span className="text-xs text-[var(--muted)]">{item.category}</span></td><td>{item.stock}</td><td>{item.location}</td><td className="font-semibold">{item.validity}</td><td><StatusBadge status={item.status} /></td><td className="pr-5 text-right"><Button variant="ghost" size="sm" onClick={() => openDetails(item)}>Editar</Button><Button variant="ghostDanger" size="sm" onClick={() => openWaste(item.id)}>Baixa</Button></td></tr>)}</tbody>
           </table>
           {rows.length === 0 && <EmptyState title="Nenhum alimento encontrado" description="Altere os filtros ou cadastre um novo alimento." action={() => { setQuery(""); setCategory("Todas"); setStatus("Todos"); }} actionLabel="Limpar filtros" />}
         </div>
@@ -130,7 +129,7 @@ export default function InventoryPage({ navigate, notify, foods, stocks, restaur
         <Field label="Validade"><input type="date" value={editForm.validade} onChange={(event) => setEditForm((current) => ({ ...current, validade: event.target.value }))} className="field" /></Field>
         <Field label="Data de entrada" required><input required type="date" value={editForm.entrada} onChange={(event) => setEditForm((current) => ({ ...current, entrada: event.target.value }))} className="field" /></Field>
         {error && <p role="alert" className="sm:col-span-2 text-sm text-[var(--danger)]">{error}</p>}
-        <div className="flex justify-end gap-3 sm:col-span-2"><SecondaryButton onClick={() => setDetail(null)}>Cancelar</SecondaryButton><PrimaryButton type="submit">{saving ? "Salvando…" : "Salvar"}</PrimaryButton></div>
+        <div className="flex justify-end gap-3 sm:col-span-2"><Button variant="secondary" onClick={() => setDetail(null)}>Cancelar</Button><Button type="submit" disabled={saving}>{saving ? "Salvando…" : "Salvar"}</Button></div>
       </form></Modal>}
     </>
   );

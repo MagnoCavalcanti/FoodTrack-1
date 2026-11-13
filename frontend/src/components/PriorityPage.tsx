@@ -2,8 +2,8 @@ import { useState } from "react";
 import { formatQuantity } from "../api/formatacao";
 import type { PageProps } from "./types";
 import { PageHeader } from "./PageHeader";
-import { SecondaryButton } from "./SecondaryButton";
 import { Summary } from "./Summary";
+import { Button } from "./Button";
 
 export default function PriorityPage({ navigate, openWaste, expiringStocks, usageOrder, prazoAlerta }: PageProps) {
   const [filter, setFilter] = useState("Todos");
@@ -30,7 +30,7 @@ export default function PriorityPage({ navigate, openWaste, expiringStocks, usag
   const visible = priorities.filter((item) => filter === "Todos" || (filter === "Até amanhã" ? item.critical : item.category === filter));
   return (
     <>
-      <PageHeader eyebrow="Ação preventiva" title="Itens Prioritários" description="A ordem de uso é a calculada pelo servidor, da validade mais próxima para a mais distante." actions={<SecondaryButton onClick={() => navigate("Dashboard")}>Voltar ao dashboard</SecondaryButton>} />
+      <PageHeader eyebrow="Ação preventiva" title="Itens Prioritários" description="A ordem de uso é a calculada pelo servidor, da validade mais próxima para a mais distante." actions={<Button variant="secondary" onClick={() => navigate("Dashboard")}>Voltar ao dashboard</Button>} />
       <div className="grid gap-4 sm:grid-cols-3">
         <Summary label="Dentro do prazo" value={String(atencao)} detail={`Vencem ${prazoAlerta}`} icon="calendar" tone="warning" />
         <Summary label="Vencem hoje" value={String(vencemHoje)} detail="Situação informada pela API" icon="trash" tone="danger" />
@@ -50,7 +50,7 @@ export default function PriorityPage({ navigate, openWaste, expiringStocks, usag
                 <p className="mt-1.5 text-sm text-[var(--muted-strong)]">{item.category} · {item.amount}</p>
               </div>
               <div className="flex flex-wrap gap-2 lg:justify-end">
-                <button onClick={() => openWaste(item.id)} className="min-h-11 rounded-xl border border-[var(--line)] px-4 text-sm font-semibold text-[var(--muted-strong)]">Registrar baixa</button>
+                <Button variant="dangerSoft" onClick={() => openWaste(item.id)}>Registrar baixa</Button>
               </div>
             </article>;
           })}
