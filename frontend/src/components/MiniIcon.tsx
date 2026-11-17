@@ -1,5 +1,10 @@
+/**
+ * Segundo conjunto de ícones SVG, menor (18px), usado dentro de botões e cartões.
+ * Funciona igual ao Icon.tsx: um nome escolhe o desenho e o <svg> é montado aqui.
+ */
 import type { ReactNode } from "react";
 
+/** Nomes aceitos. É este tipo que o Button usa na prop "icon". */
 export type MiniIconName = "box" | "calendar" | "chart" | "check" | "download" | "filter" | "plus" | "printer" | "search" | "trash" | "users";
 
 /** Ícone compacto usado em botões, cartões e estados vazios. */

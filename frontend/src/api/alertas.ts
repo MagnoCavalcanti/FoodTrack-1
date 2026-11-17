@@ -1,3 +1,7 @@
+/**
+ * Rotas de alertas de validade (GET /api/alertas/validade/).
+ * Usado pelo sino de notificações do cabeçalho (AppHeader).
+ */
 import { comConsulta, request } from "./cliente.ts";
 import type { AlertaValidade } from "./tipos/alerta.ts";
 

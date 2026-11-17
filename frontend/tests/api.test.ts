@@ -1,3 +1,10 @@
+/**
+ * Testes da camada de API (rodam com `npm test`, usando o test runner do Node).
+ *
+ * Não há backend de verdade aqui: cada teste troca o fetch global por uma
+ * função falsa que confere a URL, o método e os cabeçalhos recebidos e
+ * devolve uma resposta pronta. Assim testamos só o código do frontend.
+ */
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { createFood } from "../src/api/alimentos.ts";
@@ -8,6 +15,8 @@ import { listExpiringStocks } from "../src/api/estoques.ts";
 import { formatQuantity, intervaloDoMes, localDateString, mascararCnpj, rotuloDe } from "../src/api/formatacao.ts";
 import { MOTIVOS_DESPERDICIO } from "../src/api/tipos/desperdicio.ts";
 
+// Guarda o fetch verdadeiro e o restaura depois de cada teste,
+// para que o fetch falso de um teste não vaze para o próximo.
 const originalFetch = globalThis.fetch;
 
 afterEach(() => {
@@ -37,6 +46,7 @@ test("intervaloDoMes cobre o mês civil inteiro", () => {
 });
 
 test("listWaste envia o período pedido para a listagem", async () => {
+  // fetch falso: verifica se a URL montada tem os filtros na query string.
   globalThis.fetch = async (input) => {
     assert.equal(input, "/api/desperdicios/?data_inicio=2026-02-01&data_fim=2026-02-28");
     return Response.json([]);
@@ -113,6 +123,7 @@ test("login converte respostas de erro da API em ApiError", async () => {
 });
 
 test("login converte falhas de rede em ApiError com status zero", async () => {
+  // Simula o backend desligado: o fetch lança exceção em vez de responder.
   globalThis.fetch = async () => {
     throw new Error("Conexão recusada");
   };

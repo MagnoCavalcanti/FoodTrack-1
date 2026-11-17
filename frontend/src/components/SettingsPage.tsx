@@ -9,19 +9,35 @@ import { PageHeader } from "./PageHeader";
 import { SettingsHeading } from "./SettingsHeading";
 import { Button } from "./Button";
 
+/**
+ * Tela de Configurações, com duas abas:
+ * - Restaurante: nome, CNPJ e dias de alerta de validade;
+ * - Equipe: lista de usuários e botão para criar um novo.
+ *
+ * Regras de permissão:
+ * - superusuário: edita tudo e escolhe qual restaurante editar;
+ * - proprietário e gerente: editam só os dias de alerta;
+ * - funcionário: só visualiza.
+ */
 export default function SettingsPage({ notify, user, users, restaurants, token, saveUser, saveRestaurant, saveRestaurantSettings }: PageProps) {
-  const [tab, setTab] = useState("Restaurante");
-  const [memberModal, setMemberModal] = useState(false);
+  const [tab, setTab] = useState("Restaurante");       // aba ativa
+  const [memberModal, setMemberModal] = useState(false); // modal "Criar usuário" aberto?
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // Restaurante em edição: o da conta; para o superusuário (sem restaurante), o primeiro da lista.
+  // "||" usa o próximo valor quando o anterior é vazio/0/null; "?." evita erro se a lista estiver vazia.
   const [restaurantId, setRestaurantId] = useState(user.restaurante || restaurants[0]?.id || 0);
   const restaurant = restaurants.find((item) => item.id === restaurantId);
   const podeAlterarAlerta = user.is_superuser || user.perfil === "proprietario" || user.perfil === "gerente";
+  // Valores do formulário do restaurante. "??" usa 3 só se o valor for null/undefined (0 é aceito).
   const [restaurantForm, setRestaurantForm] = useState({ nome: restaurant?.nome || "", cnpj: restaurant?.cnpj || "", dias_alerta_validade: restaurant?.dias_alerta_validade ?? 3 });
+  // Valores do formulário de novo usuário (perfil padrão: funcionário).
   const [memberForm, setMemberForm] = useState({ nome: "", username: "", email: "", perfil: "funcionario", password: "", restaurante: String(user.restaurante || "") });
+  // Abas: [nome, descrição]
   const tabs = [["Restaurante", "Dados disponíveis na API"], ["Equipe", "Contas do restaurante"]];
 
   // Os dias exibidos vêm da configuração do restaurante, não só da lista geral.
+  // Roda ao abrir a tela e quando o superusuário troca o restaurante selecionado.
   useEffect(() => {
     if (!restaurantId) return;
     let ativo = true;
@@ -51,6 +67,7 @@ export default function SettingsPage({ notify, user, users, restaurants, token, 
         await saveRestaurant(restaurant.id, restaurantForm);
         notify("Dados do restaurante atualizados.");
       } else {
+        // Usa o valor devolvido pelo servidor para garantir que a tela mostra o que foi salvo.
         const atualizado = await saveRestaurantSettings(restaurantForm.dias_alerta_validade);
         setRestaurantForm((current) => ({ ...current, dias_alerta_validade: atualizado.dias_alerta_validade }));
         notify("Prazo de alerta atualizado.");
@@ -62,6 +79,7 @@ export default function SettingsPage({ notify, user, users, restaurants, token, 
     }
   };
 
+  // Cria a conta pelo App (saveUser); ao terminar, fecha o modal e limpa o formulário.
   const submitMember = async (event: FormEvent) => {
     event.preventDefault();
     setSaving(true);
@@ -89,7 +107,9 @@ export default function SettingsPage({ notify, user, users, restaurants, token, 
   return (
     <>
       <PageHeader eyebrow="Administração" title="Configurações" description="Dados de restaurante e equipe disponibilizados pelo backend." />
+      {/* Layout: menu de abas à esquerda (250px) e conteúdo à direita */}
       <div className="grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
+        {/* Menu de abas. [item, description] desestrutura cada par de "tabs". */}
         <aside className="h-fit rounded-2xl border border-[var(--line)] bg-white p-2 shadow-[var(--shadow)]">
           <p className="px-3 pb-2 pt-3 text-xs font-bold uppercase tracking-[0.1em] text-[var(--muted)]">Dados da conta</p>
           {tabs.map(([item, description]) => <button key={item} onClick={() => setTab(item)} className={`mb-1 min-h-[62px] w-full rounded-xl px-3 text-left transition ${tab === item ? "bg-[var(--brand-soft)] text-[var(--brand-dark)]" : "text-[var(--muted-strong)] hover:bg-[var(--surface-soft)]"}`}><strong className="block text-sm">{item}</strong><span className="mt-0.5 block text-xs font-normal text-[var(--muted)]">{description}</span></button>)}
@@ -97,20 +117,28 @@ export default function SettingsPage({ notify, user, users, restaurants, token, 
         </aside>
 
         <section className="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-[var(--shadow)] sm:p-7">
+          {/* ===================== ABA RESTAURANTE ===================== */}
           {tab === "Restaurante" && <>
             <SettingsHeading title="Restaurante" description="Nome e CNPJ vêm do restaurante. O prazo de alerta vem da configuração." />
+            {/* Só o superusuário vê o seletor de restaurante; ao trocar, o formulário é preenchido com o escolhido */}
             {user.is_superuser && <Field label="Selecionar restaurante" required><select required value={restaurantId} onChange={(event) => { const id = Number(event.target.value); setRestaurantId(id); const selectedRestaurant = restaurants.find((item) => item.id === id); if (selectedRestaurant) setRestaurantForm({ nome: selectedRestaurant.nome, cnpj: selectedRestaurant.cnpj, dias_alerta_validade: selectedRestaurant.dias_alerta_validade }); }} className="field mt-5">{restaurants.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}</select></Field>}
+            {/* Formulário do restaurante. readOnly trava os campos que a conta não pode alterar:
+                nome e CNPJ só para superusuário; dias de alerta para quem tem podeAlterarAlerta.
+                O CNPJ recebe a máscara a cada tecla (mascararCnpj). */}
             {restaurant ? <form onSubmit={submitRestaurant} className="mt-6 grid gap-5 sm:grid-cols-2">
               <Field label="Nome" required><input required maxLength={150} readOnly={!user.is_superuser} value={restaurantForm.nome} onChange={(event) => setRestaurantForm((current) => ({ ...current, nome: event.target.value }))} className="field read-only:opacity-70" /></Field>
               <Field label="CNPJ" required><input required inputMode="numeric" maxLength={18} placeholder="00.000.000/0000-00" readOnly={!user.is_superuser} value={restaurantForm.cnpj} onChange={(event) => setRestaurantForm((current) => ({ ...current, cnpj: mascararCnpj(event.target.value) }))} className="field read-only:opacity-70" /></Field>
               <Field label="Dias de alerta de validade" required><input required type="number" min={0} max={365} readOnly={!podeAlterarAlerta} value={restaurantForm.dias_alerta_validade} onChange={(event) => setRestaurantForm((current) => ({ ...current, dias_alerta_validade: Number(event.target.value) }))} className="field read-only:opacity-70" /></Field>
               {podeAlterarAlerta && <div className="sm:col-span-2"><Button type="submit" disabled={saving}>{saving ? "Salvando…" : user.is_superuser ? "Salvar restaurante" : "Salvar prazo de alerta"}</Button></div>}
             </form> : <p className="mt-6 text-sm text-[var(--muted-strong)]">Esta conta de superusuário não está vinculada a um restaurante específico.</p>}
+            {/* Texto explicativo diferente para cada tipo de conta */}
             {user.is_superuser && <p className="mt-4 text-sm text-[var(--muted-strong)]">Nome, CNPJ e prazo de alerta são gravados no restaurante selecionado.</p>}
             {!user.is_superuser && podeAlterarAlerta && <p className="mt-4 text-sm text-[var(--muted-strong)]">Você pode alterar o prazo de alerta do seu restaurante. Nome e CNPJ ficam com o superusuário.</p>}
             {!podeAlterarAlerta && <p className="mt-4 text-sm text-[var(--muted-strong)]">Somente proprietário, gerente ou superusuário pode alterar o prazo de alerta.</p>}
             <p className="mt-6 rounded-xl bg-[var(--warning-soft)] p-4 text-sm text-[var(--warning-ink)]">Telefone, endereço e moeda não existem no modelo.</p>
           </>}
+          {/* ===================== ABA EQUIPE ===================== */}
+          {/* Lista de contas: avatar com iniciais | nome, login e e-mail | perfil traduzido */}
           {tab === "Equipe" && <>
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><SettingsHeading title="Usuários" description={`${users.length} contas retornadas pela API.`} /><Button onClick={() => { setError(""); setMemberModal(true); }} icon="plus">Criar usuário</Button></div>
             <div className="mt-6 space-y-3">{users.map((member) => <div key={member.id} className="flex flex-col gap-3 rounded-2xl border border-[var(--line)] p-4 sm:flex-row sm:items-center"><span className="grid size-11 shrink-0 place-items-center rounded-full bg-[var(--surface-soft)] text-xs font-bold">{member.nome.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</span><div className="min-w-0 flex-1"><strong className="block text-sm">{member.nome}</strong><span className="text-xs text-[var(--muted)]">{member.username} · {member.email}</span></div><span className="text-sm font-semibold text-[var(--brand-dark)]">{rotuloDe(ROTULOS_PERFIL, member.perfil)}</span></div>)}</div>
@@ -119,6 +147,8 @@ export default function SettingsPage({ notify, user, users, restaurants, token, 
           {error && <p role="alert" className="mt-5 rounded-lg bg-[var(--danger-soft)] p-3 text-sm text-[var(--danger)]">{error}</p>}
         </section>
       </div>
+      {/* Modal "Criar usuário". Senha mínima de 8 caracteres (minLength).
+          O campo Restaurante só aparece para o superusuário. */}
       {memberModal && <Modal title="Criar usuário" close={() => setMemberModal(false)}><form onSubmit={submitMember} className="grid gap-4 sm:grid-cols-2">
         <Field label="Nome" required><input required maxLength={150} value={memberForm.nome} onChange={(event) => setMemberForm((current) => ({ ...current, nome: event.target.value }))} className="field" /></Field>
         <Field label="Usuário" required><input required maxLength={150} value={memberForm.username} onChange={(event) => setMemberForm((current) => ({ ...current, username: event.target.value }))} className="field" /></Field>

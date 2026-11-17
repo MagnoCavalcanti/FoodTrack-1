@@ -1,9 +1,11 @@
+/** Tipos TypeScript de restaurante. */
+
 /** Restaurante visível para a conta autenticada. */
 export type Restaurant = {
   id: number;
   nome: string;
   cnpj: string;
-  dias_alerta_validade: number;
+  dias_alerta_validade: number; // com quantos dias de antecedência o lote entra em alerta
 };
 
 /** Recorte usado para ler e gravar só a antecedência do alerta de validade. */

@@ -1,10 +1,12 @@
+/** Tipos TypeScript de alimento e a lista de categorias do cadastro. */
+
 /** Alimento cadastrado no restaurante. */
 export type FoodItem = {
   id: number;
   nome: string;
-  categoria: string;
-  medida: string;
-  restaurante: number;
+  categoria: string;   // texto livre (ex.: "Carnes")
+  medida: string;      // unidade: "Kg", "g", "L", "ml", "un", "maço", "caixa"
+  restaurante: number; // id do restaurante dono do alimento
 };
 
 /** Dados enviados para cadastrar um alimento. O restaurante é opcional para o superusuário. */

@@ -1,4 +1,23 @@
+/**
+ * App.tsx — o "cérebro" do frontend.
+ *
+ * Responsabilidades:
+ * 1. SESSÃO: guarda o token de login (no localStorage) e decide entre mostrar
+ *    o login, a tela de carregamento ou o sistema.
+ * 2. DADOS: carrega da API tudo que as telas usam e guarda em useState.
+ * 3. NAVEGAÇÃO: o estado "active" diz qual tela aparece (não há React Router).
+ * 4. GRAVAÇÕES: funções que salvam na API e depois recarregam os dados
+ *    (submitFood, submitWaste, editWaste, removeWaste, saveStock...).
+ * 5. LAYOUT: desenha menu lateral + cabeçalho + tela atual + modal + Toast.
+ *
+ * As páginas recebem os dados e as funções por props (objeto pageProps).
+ *
+ * Ordem de leitura sugerida neste arquivo:
+ * carregarRecursos → estados (useState) → useEffect de carga → submitLogin/logout
+ * → funções de gravação → os "if" de renderização → JSX final.
+ */
 import { useEffect, useState, type FormEvent } from "react";
+// Funções de acesso à API, uma por rota (pasta api/).
 import { listExpiryAlerts } from "./api/alertas";
 import { listFoods, createFood } from "./api/alimentos";
 import { login, logout as encerrarSessao } from "./api/autenticacao";
@@ -8,6 +27,7 @@ import { listStocks, listExpiringStocks, listUsageOrder, createStock, updateStoc
 import { formatQuantity, intervaloDoMes, localDateString } from "./api/formatacao";
 import { getWasteReport } from "./api/relatorios";
 import { listRestaurants, updateRestaurant, updateRestaurantSettings } from "./api/restaurantes";
+// Tipos (só para o TypeScript; "import type" não gera código).
 import type { AlertaValidade } from "./api/tipos/alerta";
 import type { FoodItem } from "./api/tipos/alimento";
 import type { MotivoDesperdicio, WasteRecord } from "./api/tipos/desperdicio";
@@ -16,6 +36,7 @@ import type { RelatorioDesperdicio } from "./api/tipos/relatorio";
 import type { Restaurant } from "./api/tipos/restaurante";
 import { getCurrentUser, listUsers, createUser } from "./api/usuarios";
 import type { User } from "./api/tipos/usuario";
+// Componentes visuais: layout, telas e peças globais.
 import { AppHeader } from "./components/AppHeader";
 import CreateFoodPage from "./components/CreateFoodPage";
 import DashboardPage from "./components/DashboardPage";
@@ -31,6 +52,7 @@ import { WasteForm, quantidadeInicialDaBaixa } from "./components/WasteForm";
 import WastePage from "./components/WastePage";
 import type { ExpiringFood } from "./components/types";
 
+/** Formato do pacote com tudo que vem da API no carregamento inicial. */
 type RecursosCarregados = {
   user: User;
   users: User[];
@@ -45,7 +67,13 @@ type RecursosCarregados = {
   relatorioMes: RelatorioDesperdicio;
 };
 
-/** Junta as consultas que as telas compartilham. Cada chamada permanece no setor da rota. */
+/**
+ * Junta as consultas que as telas compartilham. Cada chamada permanece no setor da rota.
+ *
+ * Promise.all dispara as 11 requisições AO MESMO TEMPO e espera todas.
+ * Se qualquer uma falhar, o Promise.all inteiro falha (cai no .catch do useEffect).
+ * A desestruturação [user, users, ...] pega os resultados na mesma ordem da lista.
+ */
 async function carregarRecursos(token: string): Promise<RecursosCarregados> {
   const [user, users, restaurants, foods, stocks, waste, expiringStocks, usageOrder, alerts, motivos, relatorioMes] = await Promise.all([
     getCurrentUser(token),
@@ -58,12 +86,17 @@ async function carregarRecursos(token: string): Promise<RecursosCarregados> {
     listUsageOrder(token),
     listExpiryAlerts(token),
     listWasteReasons(token),
+    // Relatório do mês atual agrupado por motivo. "...intervaloDoMes()" espalha
+    // data_inicio e data_fim dentro deste objeto.
     getWasteReport(token, { ...intervaloDoMes(), agrupar: "motivo" }),
   ]);
   return { user, users, restaurants, foods, stocks, waste, expiringStocks, usageOrder, alerts, motivos, relatorioMes };
 }
 
-/** Descreve o prazo de alerta usado nas mensagens, a partir da configuração do restaurante. */
+/**
+ * Descreve o prazo de alerta usado nas mensagens, a partir da configuração do restaurante.
+ * Ex.: "até 3 dia(s)". O superusuário (que vê vários restaurantes) recebe um texto genérico.
+ */
 function textoDoPrazo(user: User, restaurants: Restaurant[]) {
   const proprio = restaurants.find((item) => item.id === user.restaurante);
   if (proprio) return `até ${proprio.dias_alerta_validade} dia(s)`;
@@ -73,24 +106,29 @@ function textoDoPrazo(user: User, restaurants: Restaurant[]) {
 
 // Componente raiz: concentra sessão, dados compartilhados e navegação entre telas.
 export default function App() {
-  // Estado da interface e da tela atual.
-  const [active, setActive] = useState("Dashboard");
-  const [search, setSearch] = useState("");
-  const [mobileMenu, setMobileMenu] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [wasteModal, setWasteModal] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [toast, setToast] = useState("");
-  const [wasteForm, setWasteForm] = useState({ estoque: "", quantidade: "", motivo: "outro", descricao: "" });
+  // useState devolve [valor, funçãoQueMudaOValor]. Quando o valor muda, o React
+  // redesenha o componente com o valor novo.
+
+  // ---------- Estado da interface e da tela atual ----------
+  const [active, setActive] = useState("Dashboard");             // nome da tela visível (navegação)
+  const [search, setSearch] = useState("");                      // texto da busca do cabeçalho
+  const [mobileMenu, setMobileMenu] = useState(false);           // menu aberto no celular?
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // menu recolhido no desktop?
+  const [wasteModal, setWasteModal] = useState(false);           // modal de desperdício aberto?
+  const [notificationsOpen, setNotificationsOpen] = useState(false); // painel do sino aberto?
+  const [toast, setToast] = useState("");                        // mensagem do Toast ("" = escondido)
+  const [wasteForm, setWasteForm] = useState({ estoque: "", quantidade: "", motivo: "outro", descricao: "" }); // campos do modal
   const [wasteError, setWasteError] = useState("");
+  // ---------- Sessão ----------
   // A sessão é restaurada do armazenamento local quando a aplicação abre.
+  // Passar uma função (() => ...) ao useState faz a leitura acontecer só na primeira renderização.
   const [token, setToken] = useState(() => window.localStorage.getItem("foodtrack-token") || "");
   const [username, setUsername] = useState(() => window.localStorage.getItem("foodtrack-username") || "");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(null); // null até os dados chegarem
   // Recursos carregados da API e compartilhados pelas páginas.
   const [users, setUsers] = useState<User[]>([]);
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
@@ -124,8 +162,12 @@ export default function App() {
   };
 
   // Carrega os dados quando há sessão; evita atualizar estado após desmontar o efeito.
+  // useEffect(função, [token]): roda depois de desenhar a tela, e de novo sempre que o token muda
+  // (ou seja: ao abrir o app já logado, e logo após fazer login).
   useEffect(() => {
-    if (!token) return;
+    if (!token) return; // sem login, não há o que carregar
+    // "active" (local, não confundir com a tela ativa) vira false se o efeito for cancelado,
+    // para não gravar dados de uma sessão antiga.
     let active = true;
     setLoading(true);
     setLoadError("");
@@ -136,6 +178,7 @@ export default function App() {
       })
       .catch((error: unknown) => {
         if (!active) return;
+        // 401 = "não autorizado": o token expirou ou foi apagado. Faz logout local.
         if (error instanceof ApiError && error.status === 401) {
           window.localStorage.removeItem("foodtrack-token");
           window.localStorage.removeItem("foodtrack-username");
@@ -148,18 +191,20 @@ export default function App() {
       .finally(() => {
         if (active) setLoading(false);
       });
+    // Limpeza: chamada pelo React antes de rodar o efeito de novo ou ao desmontar.
     return () => { active = false; };
   }, [token]);
 
-  // Exibe uma confirmação temporária na interface.
+  // Exibe uma confirmação temporária na interface (some depois de 3,2 s).
   const notify = (message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(""), 3200);
   };
 
   // Autentica na API e persiste token e username para restaurar a sessão.
+  // Ao trocar o token com setToken, o useEffect acima roda e carrega os dados.
   const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+    event.preventDefault(); // impede o recarregamento da página pelo <form>
     setLoginError("");
     try {
       const result = await login(username, password);
@@ -182,7 +227,8 @@ export default function App() {
     }
     window.localStorage.removeItem("foodtrack-token");
     window.localStorage.removeItem("foodtrack-username");
-    setToken("");
+    setToken(""); // sem token, a renderização volta para a LoginPage
+    // Limpa todos os dados para não sobrar nada da conta anterior.
     setUser(null);
     setStockItems([]);
     setFoodItems([]);
@@ -196,6 +242,13 @@ export default function App() {
     setUsers([]);
     setActive("Dashboard");
   };
+
+  // ======================================================================
+  // FUNÇÕES DE GRAVAÇÃO
+  // Padrão de todas: 1) grava na API; 2) recarrega os dados (refreshResources);
+  // 3) se algo falhar, lança um Error com mensagem clara. A página que chamou
+  // usa try/catch e mostra essa mensagem ao usuário.
+  // ======================================================================
 
   // Cadastro é composto por duas operações: primeiro alimento, depois estoque.
   const submitFood = async (data: { nome: string; categoria: string; medida: string; quantidade: string; validade: string; localizacao: string; restaurante?: number }) => {
@@ -244,8 +297,11 @@ export default function App() {
   // O backend só desconta o lote na criação da baixa. Na edição e na exclusão,
   // o frontend devolve ao lote a quantidade antiga e desconta a nova.
   // As contas usam milésimos inteiros para evitar erro de ponto flutuante.
+  // Ex.: "2.5" → 2500 milésimos; 2500 → "2.500". Somar inteiros não tem erro de arredondamento.
   const emMilesimos = (valor: string) => Math.round(Number(valor) * 1000);
   const deMilesimos = (valor: number) => (valor / 1000).toFixed(3);
+  // Busca os saldos MAIS RECENTES dos lotes direto da API (não confia na lista em memória,
+  // que pode estar desatualizada). Devolve um Map id do lote → saldo em milésimos.
   const saldosAtuais = async () => {
     const lotes = await listStocks(token);
     return new Map(lotes.map((lote) => [lote.id, emMilesimos(lote.quantidade_atual)]));
@@ -260,11 +316,14 @@ export default function App() {
     const mesmoLote = original.estoque === data.estoque;
     const saldoDestino = saldos.get(data.estoque);
     if (saldoDestino === undefined) throw new Error("O lote escolhido não foi encontrado.");
+    // No mesmo lote, a quantidade antiga "volta" antes de descontar a nova.
     const disponivel = mesmoLote ? saldoDestino + antiga : saldoDestino;
     if (nova > disponivel) throw new Error(`A quantidade não pode ser maior que o saldo disponível no lote (${formatQuantity(deMilesimos(disponivel))}).`);
 
     await updateWaste(token, original.id, data);
     try {
+      // Mesmo lote: saldo = saldo + antiga - nova (só grava se mudou).
+      // Lote trocado: devolve a antiga ao lote de origem e desconta a nova do destino.
       if (mesmoLote) {
         if (nova !== antiga) await updateStock(token, data.estoque, { quantidade_atual: deMilesimos(saldoDestino + antiga - nova) });
       } else {
@@ -342,6 +401,12 @@ export default function App() {
     return atualizado;
   };
 
+  // ======================================================================
+  // RENDERIZAÇÃO
+  // O componente devolve uma de três telas, nesta ordem de verificação:
+  // 1. sem token → Login;  2. carregando ou sem dados → Loading;  3. sistema.
+  // ======================================================================
+
   // Sem token, somente o formulário de login é renderizado.
   if (!token) {
     return (
@@ -362,11 +427,17 @@ export default function App() {
     return <LoadingPage loading={loading} loadError={loadError} onLogout={logout} />;
   }
 
+  // Daqui para baixo, user e relatorioMes com certeza existem.
+  // Os valores abaixo são DERIVADOS: recalculados a cada renderização a partir do estado.
+
   // Monta a visão do painel com a classificação que o servidor já calculou.
   const foodById = new Map(foodItems.map((food) => [food.id, food]));
   const prazoAlerta = textoDoPrazo(user, restaurants);
+  // Converte cada lote próximo do vencimento (formato da API) para o formato do cartão
+  // do Dashboard, e depois filtra pela busca do cabeçalho (nome ou local).
   const foodsExpiringToday: ExpiringFood[] = expiringStocks
     .map((stock) => {
+      // Cor do quadrado da categoria: carne = vermelho, pescado = azul, hortifruti = verde, resto = índigo.
       const categoryClass = stock.categoria.toLowerCase().includes("carne") ? "cat-red" : stock.categoria.toLowerCase().includes("pesc") ? "cat-blue" : stock.categoria.toLowerCase().includes("hort") ? "cat-green" : "cat-indigo";
       return {
         id: stock.id,
@@ -383,6 +454,7 @@ export default function App() {
   const expiringSoonCount = expiringStocks.filter((stock) => stock.situacao !== "vencido").length;
   const expiredCount = expiringStocks.filter((stock) => stock.situacao === "vencido").length;
   const wasteThisMonth = relatorioMes.total_registros;
+  // Até 5 alertas para o sino do cabeçalho, com a medida do alimento buscada pelo lote.
   const notifications = alerts.slice(0, 5).map((alerta) => {
     const stock = stockItems.find((item) => item.id === alerta.estoque);
     const food = stock ? foodById.get(stock.alimento) : undefined;
@@ -396,6 +468,8 @@ export default function App() {
     };
   });
   // Abre o formulário de desperdício, opcionalmente pré-selecionando um estoque.
+  // Ex.: o botão "Registrar baixa" de um lote chama openWaste(id do lote);
+  // o botão geral "Registrar desperdício" chama openWaste() sem lote.
   const openWaste = (stockId?: number) => {
     const lote = stockId ? stockItems.find((stock) => stock.id === stockId) : undefined;
     const saldo = lote ? Number(lote.quantidade_atual) : Number.NaN;
@@ -409,7 +483,8 @@ export default function App() {
     setWasteError("");
     setWasteModal(true);
   };
-  // Contrato comum passado às páginas de recursos.
+  // Contrato comum passado às páginas de recursos (tipo PageProps em components/types.ts).
+  // Na hora de usar: <InventoryPage {...pageProps} /> espalha cada campo como uma prop.
   const pageProps = {
     page: active,
     navigate: setActive,
@@ -441,6 +516,7 @@ export default function App() {
   // Estrutura compartilhada: menu lateral, cabeçalho, conteúdo e ações globais.
   return (
     <div className="min-h-screen bg-[var(--canvas)] text-[var(--ink)]">
+      {/* Menu lateral fixo à esquerda */}
       <Sidebar
         collapsed={sidebarCollapsed}
         mobileOpen={mobileMenu}
@@ -453,6 +529,7 @@ export default function App() {
         onSupport={() => notify("Central de suporte aberta")}
       />
 
+      {/* Área à direita do menu. O padding-left acompanha a largura do menu (84px ou 268px). */}
       <div className={`transition-[padding] duration-200 ${sidebarCollapsed ? "lg:pl-[84px]" : "lg:pl-[268px]"}`}>
         <AppHeader
           search={search}
@@ -469,6 +546,8 @@ export default function App() {
           userProfile={user.perfil}
           onLogout={logout}
         />
+        {/* "Roteador" manual: só a tela cujo nome é igual a "active" é desenhada.
+            O Dashboard recebe props específicas; as demais recebem pageProps. */}
         <main className="mx-auto max-w-[1440px] px-4 py-7 sm:px-6 xl:px-10 xl:py-9">
           {active === "Dashboard" && (
             <DashboardPage
@@ -494,6 +573,7 @@ export default function App() {
         </main>
       </div>
 
+      {/* Modal global de registrar desperdício (pode ser aberto de várias telas) */}
       {wasteModal && (
         <WasteForm
           foods={foodItems}
@@ -508,6 +588,7 @@ export default function App() {
           onSaved={() => { setWasteModal(false); notify("Desperdício registrado."); }}
         />
       )}
+      {/* Mensagem de confirmação no rodapé (só aparece quando toast não está vazio) */}
       <Toast message={toast} />
     </div>
   );

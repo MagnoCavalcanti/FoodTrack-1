@@ -1,3 +1,8 @@
+/**
+ * Rotas de estoque (/api/estoques/).
+ * Um estoque é um LOTE: uma quantidade de um alimento, num local, com validade.
+ * O mesmo alimento pode ter vários lotes.
+ */
 import { comConsulta, request } from "./cliente.ts";
 import type { EstoqueOrdenado, EstoqueProximo, NovoEstoque, StockItem } from "./tipos/estoque.ts";
 
@@ -14,7 +19,10 @@ export function createStock(token: string, data: NovoEstoque) {
   });
 }
 
-/** Atualiza quantidade, validade, entrada ou localização de um lote existente. */
+/**
+ * Atualiza quantidade, validade, entrada ou localização de um lote existente.
+ * PATCH = atualização parcial: só os campos enviados mudam (por isso o Partial).
+ */
 export function updateStock(token: string, id: number, data: Partial<Omit<StockItem, "id">>) {
   return request<StockItem>(`estoques/${id}/`, token, {
     method: "PATCH",

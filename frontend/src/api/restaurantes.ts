@@ -1,3 +1,9 @@
+/**
+ * Rotas de restaurantes (/api/restaurantes/).
+ * Há duas formas de gravar:
+ * - updateRestaurant: altera tudo (nome, CNPJ, dias) — só superusuário;
+ * - updateRestaurantSettings: altera só os dias de alerta — proprietário e gerente.
+ */
 import { comConsulta, request } from "./cliente.ts";
 import type { ConfiguracaoRestaurante, Restaurant } from "./tipos/restaurante.ts";
 

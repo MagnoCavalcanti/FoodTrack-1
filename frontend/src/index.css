@@ -1,9 +1,20 @@
+/*
+ * Estilos globais do FoodTrack.
+ * A maior parte do visual está nas classes do Tailwind dentro dos .tsx.
+ * Aqui ficam: a fonte, as cores (variáveis), ajustes globais e algumas classes
+ * próprias (.field, .field-label, .panel-title, .cat-*).
+ */
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
+/*
+ * Paleta de cores em variáveis CSS. Nos componentes elas aparecem como
+ * bg-[var(--brand)], text-[var(--danger)] etc. Mudar aqui muda o app inteiro.
+ */
 :root {
   font-family: "DM Sans", sans-serif;
   color-scheme: light;
+  /* Fundos, textos e linhas neutras */
   --canvas: #fafbfc;
   --surface-soft: #f7f9fa;
   --ink: #111827;
@@ -12,15 +23,18 @@
   --icon: #8fa1b5;
   --line: #e4e9ef;
   --line-strong: #cbd5e1;
+  /* Verde da marca: ações principais, itens ativos, sucesso */
   --brand: #079669;
   --brand-dark: #057a55;
   --brand-soft: #ebfbf5;
   --brand-border: #b9efd8;
   --success: #10b981;
+  /* Vermelho: vencidos, erros, excluir, desperdício */
   --danger: #e11d48;
   --danger-bright: #f43f5e;
   --danger-soft: #fff1f3;
   --danger-border: #fecdd5;
+  /* Amarelo/laranja: atenção, validade próxima */
   --warning: #d97706;
   --warning-strong: #c65d0b;
   --warning-ink: #80340f;
@@ -33,6 +47,7 @@
   --shadow: 0 4px 18px rgba(30, 41, 59, 0.035);
 }
 
+/* Largura e altura passam a incluir padding e borda (facilita o layout). */
 * {
   box-sizing: border-box;
 }
@@ -44,21 +59,25 @@ body {
   background: var(--canvas);
 }
 
+/* Campos e botões usam a mesma fonte da página (o navegador usaria outra). */
 button,
 input,
 select {
   font: inherit;
 }
 
+/* Cursor de "mãozinha" e sem atraso de toque duplo no celular. */
 button {
   cursor: pointer;
   touch-action: manipulation;
 }
 
+/* Efeito de "afundar" levemente ao clicar. */
 button:active {
   transform: scale(0.985);
 }
 
+/* Acessibilidade: se o sistema pede menos movimento, as animações ficam quase instantâneas. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -68,6 +87,7 @@ button:active {
   }
 }
 
+/* Título pequeno em maiúsculas dos painéis laterais do Dashboard. */
 .panel-title {
   font-size: 0.76rem;
   line-height: 1rem;
@@ -77,6 +97,10 @@ button:active {
   color: var(--muted-strong);
 }
 
+/*
+ * Cores do quadrado de categoria nos cartões do Dashboard.
+ * O App escolhe a classe pelo nome da categoria (carne, pescado, hortifruti, outros).
+ */
 .cat-red {
   border-color: #fecdd3;
   background: #fff1f2;
@@ -101,6 +125,7 @@ button:active {
   color: #4f46e5;
 }
 
+/* Estilo padrão de todos os inputs e selects (className="field"). */
 .field {
   width: 100%;
   border: 1px solid var(--line);
@@ -114,6 +139,7 @@ button:active {
   transition: border-color 160ms, box-shadow 160ms;
 }
 
+/* Texto do rótulo acima de cada campo. */
 .field-label {
   display: block;
   margin-bottom: 0.5rem;
@@ -122,11 +148,13 @@ button:active {
   font-weight: 600;
 }
 
+/* Campo em foco: borda verde e um "halo" verde claro. */
 .field:focus {
   border-color: var(--brand);
   box-shadow: 0 0 0 3px var(--brand-soft);
 }
 
+/* Cor do texto selecionado com o mouse. */
 ::selection {
   background: var(--brand-soft);
   color: var(--brand-dark);

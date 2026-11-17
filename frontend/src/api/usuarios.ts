@@ -1,3 +1,8 @@
+/**
+ * Rotas de usuários (/api/usuarios/).
+ * "me/" devolve quem está logado; a lista alimenta a aba Equipe e os nomes
+ * dos responsáveis no histórico de desperdícios.
+ */
 import { request } from "./cliente.ts";
 import type { NovoUsuario, User } from "./tipos/usuario.ts";
 

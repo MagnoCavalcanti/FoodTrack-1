@@ -1,10 +1,19 @@
+/**
+ * Ícones SVG desenhados à mão (sem biblioteca de ícones).
+ * Cada ícone é só o "miolo" do SVG (<path>, <circle>...). O componente Icon
+ * coloca esse miolo dentro de um <svg> com tamanho e traço padronizados.
+ */
 import type { ReactNode } from "react";
 
+/** Nomes aceitos. Passar um nome fora da lista dá erro no TypeScript. */
 export type IconName =
   | "alert" | "bell" | "box" | "calendar" | "chart" | "check"
   | "chevron" | "close" | "dashboard" | "help" | "menu" | "plus"
   | "search" | "settings" | "sparkle" | "trash" | "trend";
 
+// Record<IconName, ReactNode> = um objeto com uma chave para CADA nome de ícone.
+// O "d" de cada <path> é o desenho em coordenadas de 0 a 24 (o viewBox).
+// <>...</> é um Fragment: agrupa vários elementos sem criar uma tag extra.
 const paths: Record<IconName, ReactNode> = {
   alert: <><path d="M10.3 3.8 2.4 18a2 2 0 0 0 1.8 3h15.6a2 2 0 0 0 1.8-3L13.7 3.8a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4M12 17h.01" /></>,
   bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></>,
@@ -25,7 +34,11 @@ const paths: Record<IconName, ReactNode> = {
   trend: <><path d="m3 17 6-6 4 4 8-9" /><path d="M15 6h6v6" /></>,
 };
 
-/** Ícone de traço usado na navegação, nos alertas e nas ações globais. */
+/**
+ * Ícone de traço usado na navegação, nos alertas e nas ações globais.
+ * stroke="currentColor" faz o ícone herdar a cor do texto (classe text-...).
+ * aria-hidden esconde o ícone de leitores de tela, porque ele é decorativo.
+ */
 export function Icon({ name, size = 20, className = "" }: { name: IconName; size?: number; className?: string }) {
   return <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }

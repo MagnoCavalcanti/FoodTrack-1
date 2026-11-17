@@ -5,15 +5,26 @@ import { PageHeader } from "./PageHeader";
 import { Summary } from "./Summary";
 import { Button } from "./Button";
 
+/**
+ * Tela "Itens Prioritários": a fila de uso dos lotes (o que usar primeiro).
+ * Não aparece no menu lateral; abre pelo sino do cabeçalho e pelos botões do Dashboard.
+ */
 export default function PriorityPage({ navigate, openWaste, expiringStocks, usageOrder, prazoAlerta }: PageProps) {
+  // Filtro escolhido nos botões: "Todos", "Até amanhã" ou o nome de uma categoria.
   const [filter, setFilter] = useState("Todos");
+  // Map = dicionário id do lote → dados do alerta. Busca rápida com .get(id).
   const alertaPorEstoque = new Map(expiringStocks.map((stock) => [stock.id, stock]));
+  // Contagens dos três cartões do topo.
   const atencao = expiringStocks.filter((stock) => stock.situacao !== "vencido").length;
   const vencemHoje = expiringStocks.filter((stock) => stock.situacao === "hoje").length;
   const vencidos = expiringStocks.filter((stock) => stock.situacao === "vencido").length;
   // A ordem e os nomes já vêm de /api/estoques/ordem-utilizacao/.
+  // Aqui só convertemos cada lote para o formato que a tela exibe.
   const priorities = usageOrder.map((stock) => {
     const alerta = alertaPorEstoque.get(stock.id);
+    // Dias até vencer: usa o valor do servidor se o lote está em alerta;
+    // senão calcula (validade - hoje) / milissegundos de um dia (86400000).
+    // Sem validade → null.
     const days = alerta ? alerta.dias_restantes : stock.validade
       ? Math.ceil((new Date(`${stock.validade}T00:00:00`).getTime() - new Date(new Date().toDateString()).getTime()) / 86400000)
       : null;
@@ -27,6 +38,8 @@ export default function PriorityPage({ navigate, openWaste, expiringStocks, usag
       critical: alerta?.situacao === "vencido" || alerta?.situacao === "hoje",
     };
   });
+  // Aplica o filtro: "Todos" mostra tudo; "Até amanhã" mostra só os críticos;
+  // qualquer outro valor é uma categoria.
   const visible = priorities.filter((item) => filter === "Todos" || (filter === "Até amanhã" ? item.critical : item.category === filter));
   return (
     <>
@@ -39,8 +52,11 @@ export default function PriorityPage({ navigate, openWaste, expiringStocks, usag
       <section className="mt-6 overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[var(--shadow)]">
         <div className="flex flex-col gap-4 border-b border-[var(--line)] p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
           <div><h2 className="text-lg font-bold">Ordem recomendada de uso</h2><p className="mt-1 text-sm text-[var(--muted-strong)]">Lotes com quantidade positiva, na posição devolvida pela API.</p></div>
+          {/* Botões de filtro: "Todos", "Até amanhã" e uma categoria para cada uma que existir.
+              new Set(...) remove categorias repetidas. O botão ativo fica escuro. */}
           <div className="flex gap-2 overflow-x-auto">{["Todos", "Até amanhã", ...new Set(priorities.map((item) => item.category))].map((item) => <button key={item} onClick={() => setFilter(item)} className={`min-h-10 whitespace-nowrap rounded-lg px-3 text-sm font-semibold ${filter === item ? "bg-[var(--ink)] text-white" : "bg-[var(--surface-soft)] text-[var(--muted-strong)]"}`}>{item}</button>)}</div>
         </div>
+        {/* Lista: número da posição na fila | nome e prazo | botão de baixa */}
         <div className="divide-y divide-[var(--line)]">
           {visible.map((item) => {
             return <article key={item.id} className="grid gap-4 p-5 transition sm:p-6 lg:grid-cols-[44px_minmax(0,1fr)_auto] lg:items-center">

@@ -1,3 +1,10 @@
+/**
+ * Rotas de desperdício (/api/desperdicios/).
+ *
+ * Atenção à regra de saldo: o backend só desconta o lote ao CRIAR a baixa.
+ * Ao editar ou excluir, quem corrige o saldo do lote é o App.tsx
+ * (funções editWaste e removeWaste).
+ */
 import { comConsulta, request } from "./cliente.ts";
 import type { FiltroDesperdicio, MotivoDesperdicio, NovoDesperdicio, WasteRecord } from "./tipos/desperdicio.ts";
 
